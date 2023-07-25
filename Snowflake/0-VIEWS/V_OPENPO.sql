@@ -89,12 +89,13 @@ FROM NETSUITE2_FSA.NS_PURCHASE_ORDER_LINE_ITEM_AUX polia
    LEFT JOIN DEV.NETSUITE2_FSA.NS_ITEMS_COMPONENTS ic
         on polia.ASSEMBLY_ELSE_ITEM_ID = ic.ITEM_ID
         and ic.ITEM_TYPE = 'Assembly'
-   JOIN DEV.NETSUITE2.DIM_ITEM i_component
+   LEFT JOIN DEV.NETSUITE2.DIM_ITEM i_component
         on ic.COMPONENT_ITEM_ID = i_component.ITEM_ID
         and i_component.type_name NOT IN ('Non-inventory Item', 'Non-inventory Item for Resale', 'Kit Part') // 2023.05.15 Alex: FSA
    JOIN DEV.NETSUITE2_RAW_RESTRICT.LOCATION loc //join added for RFS23-1189. Restrict to certain locations.
         on po.LOCATION = loc.NAME
-        and CUSTRECORD_FSA_LOCATION_RELEVANT = 'T'                              
+        and (CUSTRECORD_FSA_LOCATION_RELEVANT = 'T'
+             or loc.NAME IN ('Booksource', 'Continuum')) // 2023.05.18 Alex: FSA                             
 WHERE polia._POLI_IS_RECEIVED = 'FALSE'
        and po.order_number  not like  ('Planning%') --10/27/2022
        and po.status not in ('Closed','Fully Billed') //2023.04.04:JB:added this condition for RFS23-1190

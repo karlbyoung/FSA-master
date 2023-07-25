@@ -18,7 +18,11 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQUENCING_PO_ASSIGN_TMP1 AS
         --  	THEN IFF(dda60."MIN_SUB_15" < :cur_run_date, today60."MIN_SUB_15", dda60."MIN_SUB_15")
        	  WHEN PO_INDICATOR = -1
           	THEN IFF(PO_RECEIVE_BY_DATE < :cur_run_date, today."MIN_ADD_5", PO_RECEIVE_BY_DATE)
-          ELSE IFF(DDA < :cur_run_date, :cur_run_date, dda."MIN_SUB_15")
+--          -- changed 2023-05-30, KBY
+--          -- previous: 
+--          ELSE IFF(DDA < :cur_run_date, :cur_run_date, dda."MIN_SUB_15")
+--          -- use current date if PO_INDICATOR is non-negative, whether or not DDA is less than current date
+          ELSE :cur_run_date  
         END AS "AVAIL_DATE"
   FROM (
       (SELECT * EXCLUDE OG_QUANTITY_TO_BE_RECEIVED
@@ -125,6 +129,10 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQUENCING_PO_ASSIGN AS
            WHEN a.PO_INDICATOR_ASSIGN != prev.PO_INDICATOR_ASSIGN 
             THEN a.AVAIL_DATE
            WHEN prev.PREV_AVAIL_DATE IS NULL 
+            THEN a.AVAIL_DATE
+           -- added 2023-05-30, KBY
+           --   if PO is assigned and has quantity, and previous AVAIL date is in the future, then set AVAIL date to today (i.e. what is in a.AVAIL_DATE)
+           WHEN a.PO_INDICATOR IN (0,1) AND a.PO_INDICATOR_ASSIGN = 1 AND prev.PREV_AVAIL_DATE > :cur_run_date
             THEN a.AVAIL_DATE
            ELSE prev.PREV_AVAIL_DATE
           END AS "AVAIL_DATE"

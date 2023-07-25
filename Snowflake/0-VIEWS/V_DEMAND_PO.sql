@@ -145,8 +145,8 @@ WITH CTE_XFER AS (
         (A.SOLI_LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
                                'LSC Owensville','LSC Airwest','LSC Linn',
                                'Barrett Distribution','hand2mind','JPS Graphics',
-                               'Not Yet Assigned')
-        -- (A.SOLI_LOCATION IN ('hand2mind', 'BR Printers', 'JPS Graphics', 'LSC Owensville', 'Wards VWR', 'Not Yet Assigned')
+                               'Not Yet Assigned'
+                               ,'Booksource', 'Continuum')
         OR A.SOLI_LOCATION IS NULL)
         AND A.SOLI_IS_FULFILLED = 'FALSE' --line is open
         AND A._SOLI_IS_BIZOPS_RELEVANT = 'TRUE' --line is a physical good, plus some other criteria
@@ -207,8 +207,8 @@ Recommendation: Use Business Operations maintained DEV.NETSUITE2_FSA.NS_ITEMS_AT
         AND NSIAL.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
                                'LSC Owensville','LSC Airwest','LSC Linn',
                                'Barrett Distribution','hand2mind','JPS Graphics',
-                               'Not Yet Assigned')
-        -- AND NSIAL.LOCATION IN ('hand2mind', 'BR Printers', 'JPS Graphics', 'LSC Owensville', 'Wards VWR', 'Not Yet Assigned')
+                               'Not Yet Assigned'
+                               ,'Booksource', 'Continuum')
         AND IS_KIT = 'FALSE' -- exclude the Kit records. Their inventory is virtual. It does not actually exist
     GROUP BY NSIAL.ITEM_ID
         , I.NAME
@@ -378,7 +378,8 @@ UNION
         B.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
                                'LSC Owensville','LSC Airwest','LSC Linn',
                                'Barrett Distribution','hand2mind','JPS Graphics',
-                               'Not Yet Assigned')
+                               'Not Yet Assigned'
+                               ,'Booksource', 'Continuum') // 2023.05.18 Alex: FSA
         AND A.TYPE_NAME = 'Assembly'
         AND YEAR(RECEIVE_BY_DATE) >= 2022
     GROUP BY A.ORDER_NUMBER
@@ -400,10 +401,10 @@ UNION
 ------------------------------------------------------------------------------------------------------------------------------------------------        
 
     SELECT A.*
-        , B.Total_AVAIL_QTY
-        , CASE WHEN B.Total_AVAIL_QTY >= A.QTY_ORDERED THEN 'Available' ELSE 'BackOrder' END AS BO_STATUS
-        , DI.TYPE_NAME
-        , CAST(C.MASTERQTY AS varchar) AS NUMBER_IN_CARTON
+         , B.Total_AVAIL_QTY
+         , CASE WHEN B.Total_AVAIL_QTY >= A.QTY_ORDERED THEN 'Available' ELSE 'BackOrder' END AS BO_STATUS
+         , DI.TYPE_NAME
+         , CAST(C.MASTERQTY AS varchar) AS NUMBER_IN_CARTON
     FROM CTE_SOURCES_ASSIGN_PO A
     LEFT OUTER JOIN DEV.NETSUITE2.DIM_ITEM DI 
         ON A.ITEM_ID = DI.ITEM_ID    
@@ -412,6 +413,7 @@ UNION
     LEFT OUTER JOIN CTE_CARTON C
         ON IFNULL(A.COMPONENT_ITEM_ID, A.ITEM_ID) = C.ITEM_ID     
     WHERE CAST(A.ORDER_NUMBER AS varchar) NOT LIKE ('%Planning%')
+    AND IFNULL(A.COMPONENT_ITEM::TEXT, '0') NOT IN (SELECT COMPONENT_ITEM::TEXT FROM DEV.NETSUITE2_FSA.COMPONENT_ITEMS_TO_EXCLUDE)
 ) AS "v_0000003085_0015756651"
 )
 ;

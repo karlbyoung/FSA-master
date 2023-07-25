@@ -38,7 +38,9 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."OPEN_PO_ALL" AS (
                                          ,'LSC Linn'
                                          ,'LSC Owensville'
                                          ,'Not Yet Assigned'
-                                         ,'Wards VWR'))
+                                         ,'Wards VWR'
+                                         ,'Booksource', 'Continuum' -- 2023.05.18 Alex: FSA
+                                         ))
   ) 
   SELECT DISTINCT *
        , HASH(*)::TEXT         AS "HASH_VALUE"
