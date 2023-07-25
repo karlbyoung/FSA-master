@@ -10,7 +10,9 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."SOLI" AS
     
     ,"SOLI_CTE" AS (
         SELECT seq.* RENAME "AVAIL_DATE" AS "ITEM_AVAIL_DATE"
-              ,IFF(seq."SHARED_ORDER_NUMBER" IS NULL, "AVAIL_DATE", mad."MAX_AVAIL_DATE") AS "AVAIL_DATE"
+              /* 20230607 - AC - Hypercare Ref #122 - Temp removal until data/logic resolved */
+      		  --,IFF(seq."SHARED_ORDER_NUMBER" IS NULL, "AVAIL_DATE", mad."MAX_AVAIL_DATE") AS "AVAIL_DATE"
+      		  ,"AVAIL_DATE"
         FROM DEV.${FSA_PROD_SCHEMA}."SEQUENCING_PO_ASSIGN" seq
         LEFT JOIN "CTE_MAX_AVAIL" mad
           ON seq."ITEM_ID"             = mad."ITEM_ID"
