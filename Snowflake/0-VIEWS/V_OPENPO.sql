@@ -20,7 +20,9 @@ create or replace view V_OPENPO(
 	QUANTITY,
 	QUANTITY_RECEIVED,
 	QUANITITY_TO_BE_RECEIVED,
-	QUANITITY_TO_BE_RECEIVED_90
+	QUANITITY_TO_BE_RECEIVED_90,
+	ITEM_TYPE,
+	COMPONENT_TYPE
 ) as (SELECT 
   "ITEM_ID", 
   "ITEM", 
@@ -43,7 +45,10 @@ create or replace view V_OPENPO(
   "QUANTITY", 
   "QUANTITY_RECEIVED", 
   "QUANITITY_TO_BE_RECEIVED", 
-  "QUANITITY_TO_BE_RECEIVED_90" 
+  "QUANITITY_TO_BE_RECEIVED_90",
+  "ITEM_TYPE",
+  "COMPONENT_TYPE"
+  
 FROM (
 SELECT  
     i.item_id
@@ -68,7 +73,9 @@ SELECT
     ,QUANTITY_RECEIVED
     ,(polia.QUANTITY*.9)-ZEROIFNULL(QUANTITY_RECEIVED) as QUANITITY_TO_BE_RECEIVED
     ,(polia.QUANTITY*.9) as QUANITITY_TO_BE_RECEIVED_90
-                             
+    ,i.TYPE_NAME AS "ITEM_TYPE"
+    ,i_component.TYPE_NAME AS "COMPONENT_TYPE"
+    
 FROM NETSUITE2_FSA.NS_PURCHASE_ORDER_LINE_ITEM_AUX polia 
    JOIN DEV.NETSUITE2.FACT_PURCHASE_ORDER_LINE_ITEM poli 
        on polia.UNIQUE_KEY = poli.UNIQUE_KEY 
@@ -82,8 +89,9 @@ FROM NETSUITE2_FSA.NS_PURCHASE_ORDER_LINE_ITEM_AUX polia
    LEFT JOIN DEV.NETSUITE2_FSA.NS_ITEMS_COMPONENTS ic
         on polia.ASSEMBLY_ELSE_ITEM_ID = ic.ITEM_ID
         and ic.ITEM_TYPE = 'Assembly'
-   LEFT JOIN DEV.NETSUITE2.DIM_ITEM i_component
+   JOIN DEV.NETSUITE2.DIM_ITEM i_component
         on ic.COMPONENT_ITEM_ID = i_component.ITEM_ID
+        and i_component.type_name NOT IN ('Non-inventory Item', 'Non-inventory Item for Resale', 'Kit Part') // 2023.05.15 Alex: FSA
    JOIN DEV.NETSUITE2_RAW_RESTRICT.LOCATION loc //join added for RFS23-1189. Restrict to certain locations.
         on po.LOCATION = loc.NAME
         and CUSTRECORD_FSA_LOCATION_RELEVANT = 'T'                              
@@ -92,4 +100,5 @@ WHERE polia._POLI_IS_RECEIVED = 'FALSE'
        and po.status not in ('Closed','Fully Billed') //2023.04.04:JB:added this condition for RFS23-1190
        and ftl.CLASS_NAME not in ('General','Other')
 ORDER BY item_Id, polia.RECEIVE_BY_DATE
+
 ) AS "v_0000003085_0015756644");

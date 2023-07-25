@@ -74,8 +74,47 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQUENCING_PO_ASSIGN_TMP2 AS
 */
 
 CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQUENCING_PO_ASSIGN AS
-  SELECT a.* 
-         EXCLUDE AVAIL_DATE
+  SELECT  a.PO_ID
+         ,a.FSA_LOAD_STATUS
+         ,a.ID
+         ,a.ITEM_ID
+         ,a.ORIGINAL_DDA
+         ,a.SEQUENCING_DDA
+         ,a.ORDER_NUMBER
+         ,a.QTY_ON_HAND
+         ,FLOOR(a.QTY_ORDERED,0) AS QTY_ORDERED
+         ,a.REMAINING_QTY_ON_HAND
+         ,a.TOTAL_QTY_SOLD
+         ,a.DDA
+         ,a.ITEM
+         ,a.LOCATION
+         ,a.NS_LINE_NUMBER
+         ,a.ROW_NO
+         ,a.PRIORITY
+         ,a.SEQ
+         ,a.TRANSACTION_TYPE
+         ,a.TYPE_NAME
+         ,a.TRANSACTION_ID
+         ,a.LINE_ID
+         ,a.UNIQUE_KEY
+         ,a.PO_SLIPPAGE
+         ,a.ITEM_ROW_NO
+         ,a.SOURCE_TYPE
+         ,a.COMPONENT_ITEM
+         ,a.COMPONENT_ITEM_ID
+         ,a.ITEM_ID_BY_TRANSACTION_TYPE
+         ,a.SOURCE_LOAD_DATE
+         ,a.PK_ID
+         ,a.IS_ASSEMBLY_COMPONENT
+         ,a.CREATE_DATE
+         ,a.PO_INDICATOR
+         ,a.PO_UPDATE_DATETIME
+         ,a.PO_ORDER_NUMBER
+         ,FLOOR(a.PO_QUANTITY_REMAINING,0) AS PO_QUANTITY_REMAINING
+         ,a.PO_RECEIVE_BY_DATE
+         ,a.PO_INDICATOR_ASSIGN
+         ,FLOOR(a.PO_TOTAL_QUANTITY_TO_BE_RECEIVED,0) AS PO_TOTAL_QUANTITY_TO_BE_RECEIVED
+         ,a.SHARED_ORDER_NUMBER
       	 ,CASE 
            WHEN NULLIF(a.PO_ORDER_NUMBER,'0') != NULLIF(prev.PO_ORDER_NUMBER,'0') 
             THEN a.AVAIL_DATE

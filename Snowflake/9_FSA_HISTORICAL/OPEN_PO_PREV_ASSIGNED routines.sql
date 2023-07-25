@@ -30,7 +30,7 @@ CREATE OR REPLACE FUNCTION DEV.${FSA_CURRENT_SCHEMA}.LATEST_OPEN_PO_PREV_ASSIGNE
 	LAST_MODIFIED TIMESTAMP_LTZ(9)
 )
 AS $$
-    select t1.* exclude (used_in_process,fsa_insert_date)
+    select t1.* exclude (is_valid,fsa_insert_date)
     from DEV.${FSA_CURRENT_SCHEMA}.open_po_prev_assigned_historical t1
     join (
       select distinct
@@ -39,7 +39,7 @@ AS $$
         max(fsa_insert_date) over (partition by pk_id) max_fsa_date
           from DEV.${FSA_CURRENT_SCHEMA}.open_po_prev_assigned_historical
           where last_modified <= MAX_DATE
-            and used_in_process) t2
+            and is_valid) t2
     on t1.pk_id = t2.pk_id
       and t1.last_modified = t2.max_mod_date
       and t1.fsa_insert_date = t2.max_fsa_date
@@ -54,6 +54,17 @@ CREATE OR REPLACE FUNCTION DEV.${FSA_CURRENT_SCHEMA}.LATEST_OPEN_PO_PREV_ASSIGNE
 )
 AS $$
 	select * from TABLE(DEV.${FSA_CURRENT_SCHEMA}.LATEST_OPEN_PO_PREV_ASSIGNED(current_timestamp()))
+$$;
+
+CREATE OR REPLACE FUNCTION DEV.${FSA_CURRENT_SCHEMA}.LATEST_OPEN_PO_PREV_ASSIGNED (time_as_text text)
+  RETURNS TABLE (
+	PK_ID VARCHAR(16777216),
+	HASH_VALUE NUMBER(38,0),
+	INSERT_DATE TIMESTAMP_LTZ(9),
+	LAST_MODIFIED TIMESTAMP_LTZ(9)
+)
+AS $$
+	select * from TABLE(DEV.${FSA_CURRENT_SCHEMA}.LATEST_OPEN_PO_PREV_ASSIGNED(try_to_timestamp_ltz(time_as_text)))
 $$;
 
 CREATE OR REPLACE PROCEDURE DEV.${FSA_CURRENT_SCHEMA}.MAKE_OPEN_PO_PREV_ASSIGNED(MAX_DATE timestamp_ltz,TARGET_TABLE text)
@@ -88,3 +99,54 @@ AS $$
   return TABLE(rs);
   END;
 $$;
+
+CREATE OR REPLACE FUNCTION DEV.${FSA_CURRENT_SCHEMA}.DATES_OPEN_PO_PREV_ASSIGNED()
+  RETURNS TABLE(
+    RECENT_OR_INORDER NUMBER,
+    SOURCE_DATE TIMESTAMP_LTZ,
+    FSA_INSERT_DATE TIMESTAMP_LTZ
+  	) AS 
+$$
+  select * from
+  (
+    select row_number() over (order by source_date,fsa_insert_date)-1 rep_order,
+          source_date,
+          max(fsa_insert_date) over (partition by source_date) fsa_insert_date
+        from (
+          select max(last_modified) over (partition by fsa_insert_date) source_date,
+            fsa_insert_date
+          from DEV.${FSA_CURRENT_SCHEMA}.open_po_prev_assigned_historical 
+          where is_valid
+        ) 
+        group by source_date,fsa_insert_date
+    union
+      select row_number() over (order by source_date desc,fsa_insert_date)*-1 rep_order,
+            source_date,
+            max(fsa_insert_date) over (partition by source_date) fsa_insert_date
+          from (
+            select max(last_modified) over (partition by fsa_insert_date) source_date,
+              fsa_insert_date
+            from DEV.${FSA_CURRENT_SCHEMA}.open_po_prev_assigned_historical 
+            where is_valid
+          ) 
+    group by source_date,fsa_insert_date
+  )
+  order by rep_order
+$$;
+
+CREATE OR REPLACE FUNCTION DEV.${FSA_CURRENT_SCHEMA}.LATEST_OPEN_PO_PREV_ASSIGNED (recent_or_inorder number)
+  RETURNS TABLE (
+	PK_ID VARCHAR(16777216),
+	HASH_VALUE NUMBER(38,0),
+	INSERT_DATE TIMESTAMP_LTZ(9),
+	LAST_MODIFIED TIMESTAMP_LTZ(9)
+)
+AS $$
+	select p.* exclude (fsa_insert_date,is_valid)
+    from DEV.${FSA_CURRENT_SCHEMA}.OPEN_PO_PREV_ASSIGNED_HISTORICAL p
+    join table(DEV.${FSA_CURRENT_SCHEMA}.DATES_OPEN_PO_PREV_ASSIGNED()) d
+    	on p.fsa_insert_date = d.fsa_insert_date
+    where p.is_valid
+		and d.RECENT_OR_INORDER = recent_or_inorder
+$$;
+

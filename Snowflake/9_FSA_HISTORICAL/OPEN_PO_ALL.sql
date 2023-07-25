@@ -22,10 +22,10 @@
 --		ex: CALL MAKE_OPEN_PO_ALL('2023-04-25 23:59','TEST_OPEN_PO_ALL')
 --
 
-CREATE OR REPLACE FUNCTION DEV.${FSA_CURRENT_SCHEMA}.LATEST_OPEN_PO_ALL (MAX_DATE timestamp_ltz)
+CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_OPEN_PO_ALL (MAX_DATE timestamp_ltz)
   RETURNS TABLE (
 	PO_ROW_NO NUMBER(18,0),
-	PO_ITEM_ID FLOAT,
+	PO_ITEM_ID FLOAT,	
 	PO_ITEM_TYPE VARCHAR(11),
 	ITEM_ID FLOAT,
 	ITEM VARCHAR(4400),
@@ -49,20 +49,20 @@ CREATE OR REPLACE FUNCTION DEV.${FSA_CURRENT_SCHEMA}.LATEST_OPEN_PO_ALL (MAX_DAT
 	PK_ID VARCHAR(16777216)
 )
 AS $$
-    select t1.* exclude fsa_insert_date 
-      from DEV.${FSA_CURRENT_SCHEMA}.open_po_all_historical t1
+    select t1.* exclude (fsa_insert_date,is_valid)
+      from DEV.${FSA_PROD_SCHEMA}.open_po_all_historical t1
       join (
         select distinct insert_date,max(fsa_insert_date) over () fsa_insert_date
-        from DEV.${FSA_CURRENT_SCHEMA}.open_po_all_historical
+        from DEV.${FSA_PROD_SCHEMA}.open_po_all_historical
         where insert_date = 
           (select max(insert_date) insert_date
-            from DEV.${FSA_CURRENT_SCHEMA}.open_po_all_historical
+            from DEV.${FSA_PROD_SCHEMA}.open_po_all_historical
             where insert_date <= MAX_DATE)) t2
       on t1.insert_date = t2.insert_date
         and t1.fsa_insert_date = t2.fsa_insert_date
 $$;
 
-CREATE OR REPLACE FUNCTION DEV.${FSA_CURRENT_SCHEMA}.LATEST_OPEN_PO_ALL ()
+CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_OPEN_PO_ALL ()
   RETURNS TABLE (
 	PO_ROW_NO NUMBER(18,0),
 	PO_ITEM_ID FLOAT,
@@ -89,38 +89,131 @@ CREATE OR REPLACE FUNCTION DEV.${FSA_CURRENT_SCHEMA}.LATEST_OPEN_PO_ALL ()
 	PK_ID VARCHAR(16777216)
 )
 AS $$
-	select * from TABLE(DEV.${FSA_CURRENT_SCHEMA}.LATEST_OPEN_PO_ALL(current_timestamp()))
+	select * from TABLE(DEV.${FSA_PROD_SCHEMA}.LATEST_OPEN_PO_ALL(current_timestamp()))
 $$;
 
-CREATE OR REPLACE PROCEDURE DEV.${FSA_CURRENT_SCHEMA}.MAKE_OPEN_PO_ALL(MAX_DATE timestamp_ltz,TARGET_TABLE text)
+CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_OPEN_PO_ALL (time_as_text text)
+  RETURNS TABLE (
+	PO_ROW_NO NUMBER(18,0),
+	PO_ITEM_ID FLOAT,
+	PO_ITEM_TYPE VARCHAR(11),
+	ITEM_ID FLOAT,
+	ITEM VARCHAR(4400),
+	ITEM_ID_C NUMBER(38,0),
+	ITEM_C VARCHAR(4400),
+	ITEM_DISPLAY_NAME VARCHAR(2000),
+	ASSEMBLY_ITEM_ID FLOAT,
+	ASSEMBLY_ITEM VARCHAR(4400),
+	ASSEMBLY_ITEM_DISPLAY_NAME VARCHAR(2000),
+	ORDER_NUMBER VARCHAR(360),
+	PURCHASE_ORDER_TRANSACTION_ID FLOAT,
+	STATUS VARCHAR(32000),
+	LOCATION VARCHAR(480),
+	RECEIVE_BY_DATE DATE,
+	NS_RECEIVE_BY_DATE DATE,
+	UNIQUE_KEY FLOAT,
+	QUANTITY_TO_BE_RECEIVED FLOAT,
+	HASH_VALUE VARCHAR(16777216),
+	FSA_LOAD_STATUS VARCHAR(16777216),
+	INSERT_DATE TIMESTAMP_LTZ(9),
+	PK_ID VARCHAR(16777216)
+)
+AS $$
+	select * from TABLE(DEV.${FSA_PROD_SCHEMA}.LATEST_OPEN_PO_ALL(try_to_timestamp_ltz(time_as_text)))
+$$;
+
+
+CREATE OR REPLACE PROCEDURE DEV.${FSA_PROD_SCHEMA}.MAKE_OPEN_PO_ALL(MAX_DATE timestamp_ltz,TARGET_TABLE text)
   RETURNS TABLE()
   LANGUAGE SQL
   EXECUTE AS CALLER
 AS $$
   BEGIN
-  LET rs RESULTSET := (CREATE OR REPLACE TABLE IDENTIFIER(:TARGET_TABLE) AS SELECT * FROM TABLE(DEV.${FSA_CURRENT_SCHEMA}.LATEST_OPEN_PO_ALL(:MAX_DATE)));
+  LET rs RESULTSET := (CREATE OR REPLACE TABLE IDENTIFIER(:TARGET_TABLE) AS SELECT * FROM TABLE(DEV.${FSA_PROD_SCHEMA}.LATEST_OPEN_PO_ALL(:MAX_DATE)));
   return TABLE(rs);
   END;
 $$;
 
-CREATE OR REPLACE PROCEDURE DEV.${FSA_CURRENT_SCHEMA}.MAKE_OPEN_PO_ALL(MAX_DATE timestamp_ltz)
+CREATE OR REPLACE PROCEDURE DEV.${FSA_PROD_SCHEMA}.MAKE_OPEN_PO_ALL(MAX_DATE timestamp_ltz)
   RETURNS TABLE()
   LANGUAGE SQL
   EXECUTE AS CALLER
 AS $$
   BEGIN
-  LET rs RESULTSET := (CALL DEV.${FSA_CURRENT_SCHEMA}.MAKE_OPEN_PO_ALL(:MAX_DATE,'DEV.${FSA_CURRENT_SCHEMA}.OPEN_PO_ALL'));
+  LET rs RESULTSET := (CALL DEV.${FSA_PROD_SCHEMA}.MAKE_OPEN_PO_ALL(:MAX_DATE,'DEV.${FSA_PROD_SCHEMA}.OPEN_PO_ALL'));
   return TABLE(rs);
   END;
 $$;
 
-CREATE OR REPLACE PROCEDURE DEV.${FSA_CURRENT_SCHEMA}.MAKE_OPEN_PO_ALL()
+CREATE OR REPLACE PROCEDURE DEV.${FSA_PROD_SCHEMA}.MAKE_OPEN_PO_ALL()
   RETURNS TABLE()
   LANGUAGE SQL
   EXECUTE AS CALLER
 AS $$
   BEGIN
-  LET rs RESULTSET := (CALL DEV.${FSA_CURRENT_SCHEMA}.MAKE_OPEN_PO_ALL(current_timestamp()));
+  LET rs RESULTSET := (CALL DEV.${FSA_PROD_SCHEMA}.MAKE_OPEN_PO_ALL(current_timestamp()));
   return TABLE(rs);
   END;
+$$;
+
+CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.DATES_OPEN_PO_ALL()
+  RETURNS TABLE(
+    RECENT_OR_INORDER NUMBER,
+    INSERT_DATE TIMESTAMP_LTZ,
+    FSA_INSERT_DATE TIMESTAMP_LTZ
+  	) AS 
+$$
+  select * from
+  (
+    select row_number() over (order by insert_date,fsa_insert_date)-1 rep_order,
+            insert_date,
+            max(fsa_insert_date) over (partition by insert_date) fsa_insert_date
+        from DEV.${FSA_PROD_SCHEMA}.open_po_all_historical 
+        where is_valid 
+        group by insert_date,fsa_insert_date
+    union
+    select row_number() over (order by insert_date desc,fsa_insert_date)*-1 rep_order,
+            insert_date,
+            max(fsa_insert_date) over (partition by insert_date) fsa_insert_date
+        from DEV.${FSA_PROD_SCHEMA}.open_po_all_historical 
+        where is_valid 
+        group by insert_date,fsa_insert_date
+  )
+  order by rep_order
+$$;
+
+CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_OPEN_PO_ALL (recent_or_inorder number)
+  RETURNS TABLE (
+	PO_ROW_NO NUMBER(18,0),
+	PO_ITEM_ID FLOAT,
+	PO_ITEM_TYPE VARCHAR(11),
+	ITEM_ID FLOAT,
+	ITEM VARCHAR(4400),
+	ITEM_ID_C NUMBER(38,0),
+	ITEM_C VARCHAR(4400),
+	ITEM_DISPLAY_NAME VARCHAR(2000),
+	ASSEMBLY_ITEM_ID FLOAT,
+	ASSEMBLY_ITEM VARCHAR(4400),
+	ASSEMBLY_ITEM_DISPLAY_NAME VARCHAR(2000),
+	ORDER_NUMBER VARCHAR(360),
+	PURCHASE_ORDER_TRANSACTION_ID FLOAT,
+	STATUS VARCHAR(32000),
+	LOCATION VARCHAR(480),
+	RECEIVE_BY_DATE DATE,
+	NS_RECEIVE_BY_DATE DATE,
+	UNIQUE_KEY FLOAT,
+	QUANTITY_TO_BE_RECEIVED FLOAT,
+	HASH_VALUE VARCHAR(16777216),
+	FSA_LOAD_STATUS VARCHAR(16777216),
+	INSERT_DATE TIMESTAMP_LTZ(9),
+	PK_ID VARCHAR(16777216)
+)
+AS $$
+	select p.* exclude (fsa_insert_date,is_valid)
+    from DEV.${FSA_PROD_SCHEMA}.OPEN_PO_ALL_HISTORICAL p
+    join table(DEV.${FSA_PROD_SCHEMA}.DATES_OPEN_PO_ALL()) d
+    	on p.insert_date = d.insert_date
+           and p.fsa_insert_date = d.fsa_insert_date
+    where p.is_valid
+		and d.RECENT_OR_INORDER = recent_or_inorder
 $$;

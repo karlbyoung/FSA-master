@@ -184,6 +184,7 @@ WITH CTE_XFER AS (
         AND IC.ITEM_TYPE = 'Assembly'
     LEFT JOIN DEV.NETSUITE2.DIM_ITEM i_component
         ON IC.COMPONENT_ITEM_ID = i_component.ITEM_ID
+        AND i_component.TYPE_NAME != 'Non-inventory Item'
     WHERE POLIA._POLI_IS_RECEIVED = 'FALSE' --line is open
         AND POLIA.PO_PRODUCT_LINE NOT IN ('General', 'Other')
 )
