@@ -61,11 +61,15 @@ while (PO_ID <= MAX_PO_ID) {
                            ,SO.PK_ID
                            ,SO.IS_ASSEMBLY_COMPONENT
                            ,SO.CREATE_DATE
+                           /*  20230609 - KBY, HyperCare 113 - include values to describe using remaining available quantity for partial assignment */
+                           ,SO.AVAIL_QTY_USED
+                           ,SO.IS_PARTIAL_QTY
     					   ,SO.PO_INDICATOR
                            ,` + CUR_RUN_DATE + ` AS "PO_UPDATE_DATETIME"
                            ,FIRST_VALUE(OP."ORDER_NUMBER")            OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP."NS_RECEIVE_BY_DATE", OP."ORDER_NUMBER") AS "PO_ORDER_NUMBER"
                            ,FIRST_VALUE(OP."QUANTITY_TO_BE_RECEIVED") OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP."NS_RECEIVE_BY_DATE", OP."ORDER_NUMBER") AS "PO_QUANTITY_TO_BE_RECEIVED"
-                           ,("PO_QUANTITY_TO_BE_RECEIVED" - SO."QTY_ORDERED") AS "PO_QUANTITY_REMAINING"
+                           /*  20230609 - KBY, HyperCare 113 - reduce PO qty remaining by the qty that was ordered, less any available qty that was left */
+                           ,("PO_QUANTITY_TO_BE_RECEIVED" - SO."QTY_ORDERED" + IFF(SO."IS_PARTIAL_QTY",SO."AVAIL_QTY_USED",0)) AS "PO_QUANTITY_REMAINING"
                            ,FIRST_VALUE(OP."NS_RECEIVE_BY_DATE")      OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP."NS_RECEIVE_BY_DATE", OP."ORDER_NUMBER") AS "PO_RECEIVE_BY_DATE"
                            ,OP.OG_QUANTITY_TO_BE_RECEIVED
                        FROM DEV.${FSA_PROD_SCHEMA}."UNASSIGNED_DEMAND" SO

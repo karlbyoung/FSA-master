@@ -143,5 +143,15 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQ_DEMAND_PO AS
         , PK_ID
         , IS_ASSEMBLY_COMPONENT
         , CREATE_DATE
+        /* 20230609 - KBY, HyperCare 113 - allow for using remaining quantity to partially source the sales order */
+        , CASE 
+            WHEN (REMAINING_QTY_ON_HAND + QTY_ORDERED_ACCOUNTED) <= 0 THEN 0  -- nothing left available
+            ELSE CASE 
+                WHEN REMAINING_QTY_ON_HAND >= 0                               -- if there's enough available
+                  THEN QTY_ORDERED_ACCOUNTED                                  --   use all that was asked for
+                  ELSE (REMAINING_QTY_ON_HAND + QTY_ORDERED_ACCOUNTED)        --   otherwise use up just what's available
+                END
+            END AS AVAIL_QTY_USED
+        , (AVAIL_QTY_USED > 0 AND QTY_ORDERED_ACCOUNTED != AVAIL_QTY_USED) IS_PARTIAL_QTY -- flag to indicate we only partly could fill SO from what was available
         FROM CTE_ALL
     ORDER BY ITEM_ID_BY_TRANSACTION_TYPE, ITEM_ID, ROW_NO, ID;

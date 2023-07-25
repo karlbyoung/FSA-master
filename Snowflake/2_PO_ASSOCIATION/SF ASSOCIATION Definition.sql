@@ -31,6 +31,8 @@ $$
                     ,SO.QTY_ORDERED
                     ,SO.REMAINING_QTY_ON_HAND
                     ,SO.TOTAL_QTY_SOLD
+                    /*  20230608 - KBY, HyperCare 123 - When OpenSO is already assigned (has valid Location), IS_ALREADY_ASSIGNED contains TRUE */
+                    ,SO.IS_ALREADY_ASSIGNED
                     ,SO.DDA
                     ,SO.ITEM
                     ,SO.LOCATION
@@ -53,11 +55,16 @@ $$
                     ,SO.PK_ID
                     ,SO.IS_ASSEMBLY_COMPONENT
                     ,SO.CREATE_DATE
+                    /*  20230609 - KBY, HyperCare 113 - */
+                    ,SO.AVAIL_QTY_USED
+                    /*  20230609 - KBY, HyperCare 113 - */
+                    ,SO.IS_PARTIAL_QTY
                     ,SO.PO_INDICATOR
                     ,:cur_run_date AS "PO_UPDATE_DATETIME"
                     ,FIRST_VALUE(OP."ORDER_NUMBER")            OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP."NS_RECEIVE_BY_DATE", OP."ORDER_NUMBER") AS "PO_ORDER_NUMBER"
                     ,FIRST_VALUE(OP."QUANTITY_TO_BE_RECEIVED") OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP."NS_RECEIVE_BY_DATE", OP."ORDER_NUMBER") AS "PO_QUANTITY_TO_BE_RECEIVED"
-                    ,("PO_QUANTITY_TO_BE_RECEIVED" - SO."QTY_ORDERED") AS "PO_QUANTITY_REMAINING"
+                    /*  20230609 - KBY, HyperCare 113 - */
+                    ,("PO_QUANTITY_TO_BE_RECEIVED" - SO."AVAIL_QTY_USED") AS "PO_QUANTITY_REMAINING"
                     ,FIRST_VALUE(OP."NS_RECEIVE_BY_DATE")      OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP."NS_RECEIVE_BY_DATE", OP."ORDER_NUMBER") AS "PO_RECEIVE_BY_DATE"
                     ,OP.OG_QUANTITY_TO_BE_RECEIVED
                 FROM DEV.${FSA_PROD_SCHEMA}."UNASSIGNED_DEMAND" SO
@@ -72,9 +79,9 @@ $$
                 break;
             END FOR;
             IF (found) THEN
-                CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."DEMAND_ASSIGNMENT_TRACKED" AS SELECT * FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
+                INSERT OVERWRITE INTO DEV.${FSA_PROD_SCHEMA}."DEMAND_ASSIGNMENT_TRACKED" SELECT * FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
 
-                CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.OPEN_PO_TRACKED AS
+                INSERT OVERWRITE INTO DEV.${FSA_PROD_SCHEMA}.OPEN_PO_TRACKED 
                     SELECT DISTINCT OP.PO_ITEM_ID
                         , OP.ITEM_ID
                         , OP.ITEM_ID_C
@@ -90,12 +97,9 @@ $$
                         AND SO."PO_ORDER_NUMBER"             = OP."ORDER_NUMBER"
                         AND SO."PO_RECEIVE_BY_DATE"           = OP."NS_RECEIVE_BY_DATE";
 
-                CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.ASSIGNED_DEMAND AS
+                INSERT INTO DEV.${FSA_PROD_SCHEMA}.ASSIGNED_DEMAND
                     SELECT * 
-                    FROM (SELECT * FROM DEV.${FSA_PROD_SCHEMA}.ASSIGNED_DEMAND
-                          UNION
-                          SELECT * FROM DEV.${FSA_PROD_SCHEMA}.DEMAND_ASSIGNMENT_TRACKED)
-                    ORDER BY ITEM_ID, ROW_NO;
+                        FROM DEV.${FSA_PROD_SCHEMA}.DEMAND_ASSIGNMENT_TRACKED;
             END IF;
         END FOR;
         return 'Success: '||MAX_PO_ID::text||' iterations';
