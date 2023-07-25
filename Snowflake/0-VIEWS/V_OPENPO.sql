@@ -44,8 +44,8 @@ create or replace view V_OPENPO(
   "QUANTITY_RECEIVED", 
   "QUANITITY_TO_BE_RECEIVED", 
   "QUANITITY_TO_BE_RECEIVED_90" 
-FROM (SELECT  
-
+FROM (
+SELECT  
     i.item_id
     ,i.full_name as Item 
     ,ic.bill_of_materials_ID
@@ -84,13 +84,12 @@ FROM NETSUITE2_SANDBOX_FSA.NS_PURCHASE_ORDER_LINE_ITEM_AUX polia
         and ic.ITEM_TYPE = 'Assembly'
    LEFT JOIN DEV.NETSUITE2_SANDBOX.DIM_ITEM i_component
         on ic.COMPONENT_ITEM_ID = i_component.ITEM_ID
-                                
-                                
-WHERE polia._POLI_IS_RECEIVED = 'FALSE' -- line is open 
-                           --   and ( PO.LOCATION in ('hand2mind','BR Printers','JPS Graphics','LSC Owensville','Wards VWR','Not Yet Assigned')
-                           -- or PO.LOCATION  is null )
-                           --   and year(polia.receive_by_date) >= 2022
-       and   po.order_number  not like  ('Planning%') --10/27/2022     
+   JOIN DEV.NETSUITE2_RAW_RESTRICT_SANDBOX.LOCATION loc //join added for RFS23-1189. Restrict to certain locations.
+        on po.LOCATION = loc.NAME
+        and CUSTRECORD_FSA_LOCATION_ELEVANT = 'T'                              
+WHERE polia._POLI_IS_RECEIVED = 'FALSE'
+       and po.order_number  not like  ('Planning%') --10/27/2022
+       and po.status not in ('Closed','Fully Billed') //2023.04.04:JB:added this condition for RFS23-1190
        and ftl.CLASS_NAME not in ('General','Other')
 ORDER BY item_Id, polia.RECEIVE_BY_DATE
-) AS "v_0000003085_0015977839");
+) AS "v_0000003085_0015756644");

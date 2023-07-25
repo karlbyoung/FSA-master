@@ -141,9 +141,12 @@ WITH CTE_XFER AS (
         GROUP BY sales_order_transaction_id
         ) C
         ON B.SALES_ORDER_TRANSACTION_ID = C.SALES_ORDER_TRANSACTION_ID       
-     WHERE (A.SOLI_LOCATION IN ('hand2mind', 'BR Printers', 'JPS Graphics', 'LSC Owensville', 'Wards VWR', 'Not Yet Assigned')
-            OR A.SOLI_LOCATION IS NULL)
-        -- AND YEAR(A._DDA_FOR_SORT) = YEAR(GETDATE())
+     WHERE  
+        (A.SOLI_LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
+                               'LSC Owensville','LSC Airwest','LSC Linn',
+                               'Barrett Distribution','hand2mind','JPS Graphics')
+        -- (A.SOLI_LOCATION IN ('hand2mind', 'BR Printers', 'JPS Graphics', 'LSC Owensville', 'Wards VWR', 'Not Yet Assigned')
+        OR A.SOLI_LOCATION IS NULL)
         AND A.SOLI_IS_FULFILLED = 'FALSE' --line is open
         AND A._SOLI_IS_BIZOPS_RELEVANT = 'TRUE' --line is a physical good, plus some other criteria
         AND A.SO_TRANSACTION_TYPE NOT IN ('Depo') 
@@ -199,7 +202,10 @@ Recommendation: Use Business Operations maintained DEV.NETSUITE2_FSA.NS_ITEMS_AT
     JOIN DEV.NETSUITE2_SANDBOX.DIM_ITEM I
         ON NSIAL.ITEM_ID = I.ITEM_ID
     WHERE 1=1
-        AND NSIAL.LOCATION IN ('BR Printers', 'hand2mind', 'JPS Graphics', 'LSC Owensville', 'Wards VWR')
+        AND NSIAL.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
+                               'LSC Owensville','LSC Airwest','LSC Linn',
+                               'Barrett Distribution','hand2mind','JPS Graphics')
+        -- AND NSIAL.LOCATION IN ('hand2mind', 'BR Printers', 'JPS Graphics', 'LSC Owensville', 'Wards VWR', 'Not Yet Assigned')
         AND IS_KIT = 'FALSE' -- exclude the Kit records. Their inventory is virtual. It does not actually exist
     GROUP BY NSIAL.ITEM_ID
         , I.NAME
@@ -364,7 +370,11 @@ UNION
     INNER JOIN DEV.NETSUITE2_SANDBOX_FSA.V_OPENPO B
         ON A.ORDER_NUMBER = B.ORDER_NUMBER
         AND A.ASSEMBLY_ELSE_ITEM_ID = B.ASSEMBLY_ELSE_ITEM_ID
-    WHERE B.LOCATION IN ('hand2mind', 'BR Printers', 'JPS Graphics', 'LSC Owensville', 'Wards VWR', 'Not Yet Assigned')
+    WHERE 
+        -- B.LOCATION IN ('hand2mind', 'BR Printers', 'JPS Graphics', 'LSC Owensville', 'Wards VWR', 'Not Yet Assigned')
+        B.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
+                               'LSC Owensville','LSC Airwest','LSC Linn',
+                               'Barrett Distribution','hand2mind','JPS Graphics')
         AND A.TYPE_NAME = 'Assembly'
         AND YEAR(RECEIVE_BY_DATE) >= 2022
     GROUP BY A.ORDER_NUMBER

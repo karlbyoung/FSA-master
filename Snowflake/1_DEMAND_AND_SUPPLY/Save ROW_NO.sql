@@ -18,6 +18,7 @@ MERGE INTO DEV.${FSA_CURRENT_SCHEMA}.DEMAND_PREV_ASSIGNED t1
             t2.INSERT_DATE, -- LAST_MODIFIED
             t2.ROW_NO,
             NULL::DATE,		-- PREV_AVAIL_DATE
+            NULL::DATE,     -- PREV_CAPPING_DDA
             NULL::DATE,     -- ORIG_CAP_DDA
             NULL::NUMBER,   -- PO_INDICATOR ,
             NULL::NUMBER,   -- PO_INDICATOR_ASSIGN,

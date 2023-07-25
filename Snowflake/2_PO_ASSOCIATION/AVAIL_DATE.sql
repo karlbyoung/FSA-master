@@ -19,16 +19,6 @@ CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}.SEQUENCING_PO_ASSIGN_TMP1 AS
           	THEN IFF(PO_RECEIVE_BY_DATE < :cur_run_date, today."MIN_ADD_5", PO_RECEIVE_BY_DATE)
           ELSE NULL
         END AS "AVAIL_DATE"
-
-        , CASE WHEN PO_INDICATOR_ASSIGN = '1'
-                THEN IFF(DDA < :cur_run_date, :cur_run_date, dda."MIN_SUB_15")
-               WHEN PO_INDICATOR_ASSIGN = '0'
-                THEN IFF(dda60."MIN_SUB_15" < :cur_run_date, today60."MIN_SUB_15", dda60."MIN_SUB_15")
-               WHEN PO_INDICATOR_ASSIGN = '-1'
-                THEN IFF(PO_RECEIVE_BY_DATE < :cur_run_date, today."MIN_ADD_5", PO_RECEIVE_BY_DATE)
-               ELSE NULL
-               END AS "CHK_AVAIL_DATE"
-      
   FROM (
       (SELECT * EXCLUDE OG_QUANTITY_TO_BE_RECEIVED
             , IFF((REMAINING_QTY_ON_HAND >= 0 OR PO_ORDER_NUMBER IS NOT NULL), 1, 0) AS "PO_INDICATOR_ASSIGN"

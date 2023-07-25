@@ -15,19 +15,6 @@ CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}.FSA AS
         ,bob.FREDD                         AS FREDD
         ,bob.BUCKET_ON_AVAIL_DATE          AS BUCKET_ON_AVAIL_DATE
         ,bob.BUCKET_DATE_ON_AVAIL_DATE     AS BUCKET_DATE_ON_AVAIL_DATE
---        ,CASE
---            WHEN NULLIF(SPA.PO_ORDER_NUMBER,'0') != NULLIF(prev.PO_ORDER_NUMBER,'0') 
---             THEN bob.CAPPING_DDA
---            WHEN NULLIF(SPA.PO_RECEIVE_BY_DATE,'2000-01-01'::DATE) != NULLIF(prev.PO_RECEIVE_BY_DATE,'2000-01-01'::DATE) 
---             THEN bob.CAPPING_DDA
---            WHEN SPA.PO_INDICATOR != prev.PO_INDICATOR 
---             THEN bob.CAPPING_DDA
---            WHEN SPA.PO_INDICATOR_ASSIGN != prev.PO_INDICATOR_ASSIGN 
---             THEN bob.CAPPING_DDA
---            WHEN prev.ORIG_CAP_DDA IS NULL 
---             THEN bob.CAPPING_DDA
---            ELSE prev.ORIG_CAP_DDA
---          END AS "CAPPING_DDA"
         ,bob.IS_GT_15_BIZDAYS                         AS IS_GT_15_BIZDAYS
         ,bob.IF_BUCKET1                               AS IF_BUCKET1
         ,bob.IF_BUCKET2                               AS IF_BUCKET2
@@ -47,9 +34,12 @@ CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}.FSA AS
         ,SPA.AVAIL_DATE                               AS "ITEM_AVAIL_DATE"
         ,NULL::TEXT									  AS FSA_OUTPUT_STATUS
         ,bob.CAPPING_DDA                              AS "CAPPING_DDA"
-        ,prev.ORIG_CAP_DDA                            AS "PREV_CAPPING_DDA"
+--        ,IFF(SPA.FSA_LOAD_STATUS = 'NEW',
+--             bob.CAPPING_DDA,prev.ORIG_CAP_DDA)       AS "ORIG_CAP_DDA"
+        ,IFNULL(prev.ORIG_CAP_DDA,bob.CAPPING_DDA)    AS "ORIG_CAP_DDA"
         ,bob.AVAIL_DATE                               AS "NEW_AVAIL_DATE"
         ,prev.PREV_AVAIL_DATE                         AS "PREV_AVAIL_DATE"
+        ,prev.PREV_CAPPING_DDA                        AS "PREV_CAPPING_DDA"
         ,prev.PO_INDICATOR                            AS "PREV_PO_INDICATOR"
         ,prev.PO_INDICATOR_ASSIGN                     AS "PREV_PO_INDICATOR_ASSIGN"
         ,prev.PO_ORDER_NUMBER						  AS "PREV_PO_ORDER_NUMBER"
