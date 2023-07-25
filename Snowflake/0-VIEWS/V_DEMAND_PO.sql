@@ -120,7 +120,7 @@ WITH CTE_XFER AS (
         , A.SOLI_LINE_ID
         , A.SO_TRANSACTION_ID
         , A.SOLI_ITEM_TYPE AS DI_TYPE_NAME
-        , A.SO_MULTISITE_ORDER
+        , A.SO_MULTISITE_ORDER  
         , A.SO_MATERIAL_SUPPORT_STATUS
         , A.SO_AMPLIFY_INTEGRATION_STATUS
         , B.CREATE_DATE
@@ -166,10 +166,12 @@ WITH CTE_XFER AS (
         --, I.FULL_NAME
         , i.TYPE_NAME -- item type
         , PO.LOCATION
-        , POLIA.QUANTITY_REMAINING_MIN_ACCEPTABLE /*||JB.2023.03.29| value calculated in POLIA table ||(POLIA.QUANTITY*.9)-ZEROIFNULL(QUANTITY_RECEIVED) ||*/ AS QUANITITY_TO_BE_FULFILLED
+        /* 20230626 - KBY, HyperCare Ref #134 - set QUANITITY_TO_BE_FULFILLED[sic] based on 100% of QUANTITY */
+        , POLIA.QUANTITY-ZEROIFNULL(QUANTITY_RECEIVED) AS QUANITITY_TO_BE_FULFILLED
         , IC.COMPONENT_ITEM_ID -- if this is an Assembly Component, the system-assigned item id
         , i_component.NAME AS COMPONENT_ITEM -- if this is an Assembly Component, the unformatted ISBN
-        , POLIA.QUANTITY_REMAINING_MIN_ACCEPTABLE /*||JB.2023.03.29| value calculated in POLIA table.  ||(POLIA.QUANTITY*.9)-ZEROIFNULL(QUANTITY_RECEIVED)*/ * IC.COMPONENT_ITEM_QUANTITY AS COMPONENT_QTY_TO_BE_FULFILLED -- if this is an Assembly Component, the qty of the component needed to fulfill the QTY of the Kit
+        /* 20230626 - KBY, HyperCare Ref #134 - set COMPONENT_QTY_TO_BE_FULFILLED based on 100% of QUANTITY */
+        , (POLIA.QUANTITY-ZEROIFNULL(QUANTITY_RECEIVED) ) * IC.COMPONENT_ITEM_QUANTITY AS COMPONENT_QTY_TO_BE_FULFILLED -- if this is an Assembly Component, the qty of the component needed to fulfill the QTY of the Kit
         , POLI.NS_LINE_NUMBER 
         , PO.CREATE_DATE
     FROM DEV.NETSUITE2.FACT_PURCHASE_ORDER PO
