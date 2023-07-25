@@ -28,7 +28,7 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."SOLI" AS
            soli.ITEM_ID				AS "ITEM_ID",
            soli.ITEM_AVAIL_DATE     AS "ITEM_AVAIL_DATE",   -- line avail_date
            soli.AVAIL_DATE 		    AS "AVAIL_DATE", 		-- agg avail_date
---          /* 20230718 - KBY, RFS23-2033 - Adjust FREDD calculation to account for shorter turnaround at 3PLs */
+--          /* 20230718 - KBY, RFS23-2033 - Adjust FREDD calculation to account for shorter turnaround at 3PLs */ ADD IN CONNECTION WITH NETSUITE2 change
 --           cal.MIN_ADD_7::DATE		AS "FREDD", 
            cal.MIN_ADD_15::DATE		AS "FREDD", 
            soli.ID 					AS "FK_SPA_ID", 
