@@ -23,8 +23,12 @@ create or replace view V_DEMAND_PO(
 	TOTAL_AVAIL_QTY,
 	BO_STATUS,
 	TYPE_NAME,
-	NUMBER_IN_CARTON
-) as (SELECT 
+	NUMBER_IN_CARTON,
+	TRANSACTION_CREATE_DATE,
+	ESTIMATED_DELIVERY_DATE,
+	SALES_ORDER_TYPE
+) as (
+SELECT 
   "ORDER_NUMBER", 
   "UNIQUE_KEY", 
   "DDA", 
@@ -49,15 +53,18 @@ create or replace view V_DEMAND_PO(
   "TOTAL_AVAIL_QTY", 
   "BO_STATUS", 
   "TYPE_NAME", 
-  "NUMBER_IN_CARTON" 
+  "NUMBER_IN_CARTON",
+  "CREATE_DATE",
+  "ESTIMATED_DELIVERY_DATE",
+  "SALES_ORDER_TYPE"
 FROM (------ 1. TRANSFER ORDER ------
+
 WITH CTE_XFER AS (
     SELECT ABS(TOLI.QUANTITY) AS Abs_QUANTITY
         , TOLI.TRANSFER_ORDER_TRANSACTION_ID AS TRANSACTION_ID
-        , IFNULL(TOLI.QUANTITY_FULFILLED, 0) AS QUANTITY_FULFILLED 
-        , TORD.TRANSACTION_TYPE AS TYPE
-        , TORD.*
-        , TOLI.*                      
+        , IFNULL(TOLI.QUANTITY_FULFILLED, 0) AS QUANTITY_FULFILLED                                   
+        , TORD.* RENAME TRANSACTION_TYPE AS "HEADER_TRANSACTION_TYPE"
+        , TOLI.*                       
     FROM DEV.NETSUITE2_SANDBOX.FACT_TRANSFER_ORDER_LINE_ITEM TOLI
     JOIN DEV.NETSUITE2_SANDBOX.FACT_TRANSFER_ORDER TORD
         ON TOLI.TRANSFER_ORDER_TRANSACTION_ID = TORD.TRANSFER_ORDER_TRANSACTION_ID
@@ -79,7 +86,7 @@ WITH CTE_XFER AS (
         , A.SOLI_DDA
         , A.SOLI_START_DATE
         , A.SO_START_DATE
-        , A.SO_TRANSACTION_TYPE
+        , A.SO_TRANSACTION_TYPE 
         , CASE WHEN B.FIRST_80_2ND_ORDER_CREATED = 'T'
                 THEN 'PF80'
             ELSE A.SO_TRANSACTION_TYPE
@@ -92,15 +99,12 @@ WITH CTE_XFER AS (
         , D.QTY_ON_HAND
         , A.SO_STATUS
         , C.total
-        , CASE 
-            WHEN A.SO_TRANSACTION_TYPE = 'Sale' AND B.PRIORITY_LEVEL_ID IS NULL 
-                THEN 4
-            WHEN A.SO_TRANSACTION_TYPE = 'Renewal' AND B.PRIORITY_LEVEL_ID IS NULL 
-                THEN 4
-            WHEN A.SO_TRANSACTION_TYPE = 'Sale' AND B.PRIORITY_LEVEL_ID IS NOT NULL 
-                THEN B.PRIORITY_LEVEL_ID 
-            WHEN A.SO_TRANSACTION_TYPE = 'Renewal' AND B.PRIORITY_LEVEL_ID IS NOT NULL 
-                THEN B.PRIORITY_LEVEL_ID 
+        , CASE WHEN A.SO_TRANSACTION_TYPE = 'Sale' AND B.SALES_ORDER_TYPE = 104 
+                 THEN 1
+               WHEN A.SO_TRANSACTION_TYPE IN ('Sale', 'Renewal') AND B.PRIORITY_LEVEL_ID IS NULL 
+                 THEN 4
+               WHEN A.SO_TRANSACTION_TYPE IN ('Sale', 'Renewal') AND B.PRIORITY_LEVEL_ID IS NOT NULL 
+                 THEN B.PRIORITY_LEVEL_ID 
             ELSE 1  
             END AS PRIORITY_LEVEl       
         , A.SOLI_LOCATION
@@ -119,6 +123,9 @@ WITH CTE_XFER AS (
         , A.SO_MULTISITE_ORDER
         , A.SO_MATERIAL_SUPPORT_STATUS
         , A.SO_AMPLIFY_INTEGRATION_STATUS
+        , B.CREATE_DATE
+        , FSOLI.ESTIMATED_DELIVERY_DATE
+        , B.SALES_ORDER_TYPE
     FROM DEV.NETSUITE2_SANDBOX_FSA.NS_SALES_ORDER_LINE_ITEM A
     JOIN DEV.NETSUITE2_SANDBOX.FACT_SO_LINE_ITEM FSOLI
         ON A.SOLI_UNIQUE_KEY = FSOLI.UNIQUE_KEY
@@ -136,12 +143,12 @@ WITH CTE_XFER AS (
         ON B.SALES_ORDER_TRANSACTION_ID = C.SALES_ORDER_TRANSACTION_ID       
      WHERE (A.SOLI_LOCATION IN ('hand2mind', 'BR Printers', 'JPS Graphics', 'LSC Owensville', 'Wards VWR', 'Not Yet Assigned')
             OR A.SOLI_LOCATION IS NULL)
-        AND YEAR(A._DDA_FOR_SORT) = YEAR(GETDATE())
+        -- AND YEAR(A._DDA_FOR_SORT) = YEAR(GETDATE())
         AND A.SOLI_IS_FULFILLED = 'FALSE' --line is open
         AND A._SOLI_IS_BIZOPS_RELEVANT = 'TRUE' --line is a physical good, plus some other criteria
         AND A.SO_TRANSACTION_TYPE NOT IN ('Depo') 
         AND B.DEFERRED_REVENUE_BUCKETS IS NULL  
-        AND A.IFF_REF_NO IS NULL --exclude lines that are already associated with an IFF
+        AND (A.IFF_REF_NO IS NULL AND FSOLI.FULFILLMENT_REQUEST_NO IS NULL)--exclude lines that are already associated with an IFF
         and a.SOLI_ITEM_TYPE != 'Non-inventory Item' //2023.04.04:JB:added this condition for RFS23-1177  
         and coalesce(b.SSR_INITIATIVE,'--') != 'Priority Order' //2023.04.04:JB:added this condition for RFS23-1175 
 ) 
@@ -159,7 +166,8 @@ WITH CTE_XFER AS (
         , IC.COMPONENT_ITEM_ID -- if this is an Assembly Component, the system-assigned item id
         , i_component.NAME AS COMPONENT_ITEM -- if this is an Assembly Component, the unformatted ISBN
         , POLIA.QUANTITY_REMAINING_MIN_ACCEPTABLE /*||JB.2023.03.29| value calculated in POLIA table.  ||(POLIA.QUANTITY*.9)-ZEROIFNULL(QUANTITY_RECEIVED)*/ * IC.COMPONENT_ITEM_QUANTITY AS COMPONENT_QTY_TO_BE_FULFILLED -- if this is an Assembly Component, the qty of the component needed to fulfill the QTY of the Kit
-        , POLI.NS_LINE_NUMBER   
+        , POLI.NS_LINE_NUMBER 
+        , PO.CREATE_DATE
     FROM DEV.NETSUITE2_SANDBOX.FACT_PURCHASE_ORDER PO
     JOIN DEV.NETSUITE2_SANDBOX_FSA.NS_PURCHASE_ORDER_LINE_ITEM_AUX POLIA
         ON PO.PURCHASE_ORDER_TRANSACTION_ID = POLIA.PURCHASE_ORDER_TRANSACTION_ID
@@ -233,7 +241,7 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
     SELECT A.ORDER_NUMBER
         , A.UNIQUE_KEY
         , CAST(DDA_OVERRIDE_DATE AS date) AS DDA
-        , A.TYPE AS TRANSACTION_TYPE
+        , A.TRANSACTION_TYPE
         , 0 AS TOTAL_AMT
         , A.ITEM 
         , A.ITEM_ID
@@ -252,17 +260,21 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
         , NULL AS SO_MULTISITE_ORDER --- added 11/16/2022
         , NULL AS SO_MATERIAL_SUPPORT_STATUS -- added 03/14/2023 Per Emma Greenstein   
         , NULL AS SO_AMPLIFY_INTEGRATION_STATUS -- added 03/14/2023 Per Emma Greenstein  
+        , A.CREATE_DATE
+        , NULL AS ESTIMATED_DELIVERY_DATE
+        , NULL AS SALES_ORDER_TYPE
     FROM CTE_XFER A
     GROUP BY A.ORDER_NUMBER
         , A.UNIQUE_KEY
         , TO_DATE(DDA_OVERRIDE_DATE)
-        , A.TYPE
+        , A.TRANSACTION_TYPE
         , A.ITEM
         , A.ITEM_ID
         , A.Abs_QUANTITY
         , A.LOCATION_FROM
         , A.NS_LINE_NUMBER
         , A.TRANSACTION_ID
+        , A.CREATE_DATE
 
 UNION
    
@@ -289,6 +301,9 @@ UNION
         , A.SO_MULTISITE_ORDER --- added 11/16/2022    
         , A.SO_MATERIAL_SUPPORT_STATUS -- added 03/14/2023 Per Emma Greenstein   
         , A.SO_AMPLIFY_INTEGRATION_STATUS -- added 03/14/2023 Per Emma Greenstein 
+        , A.CREATE_DATE
+        , A.ESTIMATED_DELIVERY_DATE
+        , A.SALES_ORDER_TYPE
     FROM CTE_OPENSALES A
     WHERE SO_TRANSACTION_TYPE_NEW != 'Sample (aka Internal fulfillment)' --   removing samples to get rid of sample demand 8/3/2022
         --- AND A.SO_DEFERRED is null -- remove all deferred revenue items 
@@ -311,7 +326,10 @@ UNION
         , A.SOLI_LINE_ID
         , A.SO_MULTISITE_ORDER 
         , A.SO_MATERIAL_SUPPORT_STATUS
-        , A.SO_AMPLIFY_INTEGRATION_STATUS -- added 03/14/2023 Per Emma Greenstein   
+        , A.SO_AMPLIFY_INTEGRATION_STATUS -- added 03/14/2023 Per Emma Greenstein  
+        , A.CREATE_DATE
+        , A.ESTIMATED_DELIVERY_DATE
+        , A.SALES_ORDER_TYPE
       
 UNION
    
@@ -339,6 +357,9 @@ UNION
         , NULL AS SO_MULTISITE_ORDER --- added 11/16/2022
         , NULL AS SO_MATERIAL_SUPPORT_STATUS -- added 03/14/2023 Per Emma Greenstein   
         , NULL AS SO_AMPLIFY_INTEGRATION_STATUS -- added 03/14/2023 Per Emma Greenstein 
+        , A.CREATE_DATE
+        , NULL AS ESTIMATED_DELIVERY_DATE
+        , NULL AS SALES_ORDER_TYPE
     FROM CTE_PO_DETAIL A 
     INNER JOIN DEV.NETSUITE2_SANDBOX_FSA.V_OPENPO B
         ON A.ORDER_NUMBER = B.ORDER_NUMBER
@@ -357,8 +378,9 @@ UNION
         , A.COMPONENT_QTY_TO_BE_FULFILLED
         , B.LOCATION
         , A.NS_LINE_NUMBER
+        , A.CREATE_DATE
 ) 
-    
+
  ------------------------------------------------------------------------------------------------------------------------------------------------
  -- results --
 ------------------------------------------------------------------------------------------------------------------------------------------------        
@@ -376,4 +398,5 @@ UNION
     LEFT OUTER JOIN CTE_CARTON C
         ON IFNULL(A.COMPONENT_ITEM_ID, A.ITEM_ID) = C.ITEM_ID     
     WHERE CAST(A.ORDER_NUMBER AS varchar) NOT LIKE ('%Planning%')
-) AS "v_0000003085_0015977817");
+) AS "v_0000003085_0015756651"
+);

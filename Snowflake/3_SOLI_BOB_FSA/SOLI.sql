@@ -9,13 +9,12 @@ CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}."SOLI" AS
     )
     
     ,"SOLI_CTE" AS (
-        SELECT seq.*
-               RENAME "AVAIL_DATE"  AS "ITEM_AVAIL_DATE"
+        SELECT seq.* RENAME "AVAIL_DATE" AS "ITEM_AVAIL_DATE"
               ,IFF(seq."SHARED_ORDER_NUMBER" IS NULL, "AVAIL_DATE", mad."MAX_AVAIL_DATE") AS "AVAIL_DATE"
         FROM DEV.${FSA_CURRENT_SCHEMA}."SEQUENCING_PO_ASSIGN" seq
         LEFT JOIN "CTE_MAX_AVAIL" mad
-               ON seq."ITEM_ID"             = mad."ITEM_ID"
-              AND seq."SHARED_ORDER_NUMBER" = mad."SHARED_ORDER_NUMBER" 
+          ON seq."ITEM_ID"             = mad."ITEM_ID"
+         AND seq."SHARED_ORDER_NUMBER" = mad."SHARED_ORDER_NUMBER" 
         ORDER BY "ORDER_NUMBER", "ITEM", "UNIQUE_KEY"
     )
     
@@ -23,15 +22,18 @@ CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}."SOLI" AS
            soli.UNIQUE_KEY 			AS "UNIQUE_KEY", 
            soli.LINE_ID				AS "LINE_ID",
            soli.NS_LINE_NUMBER 		AS "NS_LINE_NUMBER", 
-           soli.ITEM 				AS "ITEM_NO",
+           soli.ITEM 				AS "ITEM",
            soli.ITEM_ID				AS "ITEM_ID",
-           soli.ITEM_AVAIL_DATE     AS "ITEM_AVAIL_DATE",
-           soli.AVAIL_DATE 		    AS "RECEIPT_DATE",
+           soli.ITEM_AVAIL_DATE     AS "ITEM_AVAIL_DATE",   -- line avail_date
+           soli.AVAIL_DATE 		    AS "AVAIL_DATE", 		-- agg avail_date
            cal.MIN_ADD_15::DATE		AS "FREDD", 
            soli.ID 					AS "FK_SPA_ID", 
            soli.SOURCE_LOAD_DATE 	AS "SOURCE_LOAD_DATE"
+           
+         
+           
     FROM "SOLI_CTE" soli
     LEFT JOIN "DEV"."BUSINESS_OPERATIONS"."DIM_FULFILLMENT_CALENDAR" cal
-           ON cal."RAW_DATE" = soli."AVAIL_DATE"
-    
+      ON cal."RAW_DATE" = soli."AVAIL_DATE"
+
     ORDER BY "ORDER_NUMBER", "ITEM", "UNIQUE_KEY";

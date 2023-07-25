@@ -9,27 +9,25 @@ CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}.FSA AS
            QTY_ORDERED             AS "QUANTITY",
            DDA					   AS "PRELIM_EDD"
          )
-        , CASE 
-            WHEN NULLIF(SPA.PO_ORDER_NUMBER,'0') != NULLIF(prev.PO_ORDER_NUMBER,'0') THEN bob.RECEIPT_DATE
-            WHEN NULLIF(SPA.PO_RECEIVE_BY_DATE,'2000-01-01'::DATE) != NULLIF(prev.PO_RECEIVE_BY_DATE,'2000-01-01'::DATE) THEN bob.RECEIPT_DATE
-            WHEN SPA.PO_INDICATOR != prev.PO_INDICATOR THEN bob.RECEIPT_DATE
-            WHEN SPA.PO_INDICATOR_ASSIGN != prev.PO_INDICATOR_ASSIGN THEN bob.RECEIPT_DATE
-            WHEN prev.PREV_AVAIL_DATE IS NULL THEN bob.RECEIPT_DATE
-            ELSE prev.PREV_AVAIL_DATE
-          END AS "AVAIL_DATE"
-        ,bob.ORDER_NUMBER                             AS BOB_ORDER_NUMBER
-        ,bob.ITEM_NO                                  AS BOB_ITEM
-        ,bob.FREDD                                    AS FREDD
-        ,bob.BUCKET_ON_RECEIPT                        AS BUCKET_ON_RECEIVE_BY_DATE
-        ,bob.BUCKET_DATE_ON_RECEIPT                   AS BUCKET_DATE_ON_RECEIVE_BY_DATE
-        ,CASE
-            WHEN NULLIF(SPA.PO_ORDER_NUMBER,'0') != NULLIF(prev.PO_ORDER_NUMBER,'0') THEN bob.CAPPING_DDA
-            WHEN NULLIF(SPA.PO_RECEIVE_BY_DATE,'2000-01-01'::DATE) != NULLIF(prev.PO_RECEIVE_BY_DATE,'2000-01-01'::DATE) THEN bob.CAPPING_DDA
-            WHEN SPA.PO_INDICATOR != prev.PO_INDICATOR THEN bob.CAPPING_DDA
-            WHEN SPA.PO_INDICATOR_ASSIGN != prev.PO_INDICATOR_ASSIGN THEN bob.CAPPING_DDA
-            WHEN prev.ORIG_CAP_DDA IS NULL then bob.CAPPING_DDA
-            ELSE prev.ORIG_CAP_DDA
-          END CAPPING_DDA
+        ,bob.ORDER_NUMBER                  AS BOB_ORDER_NUMBER
+        ,bob.AVAIL_DATE                    AS "AVAIL_DATE"
+        ,bob.ITEM                          AS BOB_ITEM
+        ,bob.FREDD                         AS FREDD
+        ,bob.BUCKET_ON_AVAIL_DATE          AS BUCKET_ON_AVAIL_DATE
+        ,bob.BUCKET_DATE_ON_AVAIL_DATE     AS BUCKET_DATE_ON_AVAIL_DATE
+--        ,CASE
+--            WHEN NULLIF(SPA.PO_ORDER_NUMBER,'0') != NULLIF(prev.PO_ORDER_NUMBER,'0') 
+--             THEN bob.CAPPING_DDA
+--            WHEN NULLIF(SPA.PO_RECEIVE_BY_DATE,'2000-01-01'::DATE) != NULLIF(prev.PO_RECEIVE_BY_DATE,'2000-01-01'::DATE) 
+--             THEN bob.CAPPING_DDA
+--            WHEN SPA.PO_INDICATOR != prev.PO_INDICATOR 
+--             THEN bob.CAPPING_DDA
+--            WHEN SPA.PO_INDICATOR_ASSIGN != prev.PO_INDICATOR_ASSIGN 
+--             THEN bob.CAPPING_DDA
+--            WHEN prev.ORIG_CAP_DDA IS NULL 
+--             THEN bob.CAPPING_DDA
+--            ELSE prev.ORIG_CAP_DDA
+--          END AS "CAPPING_DDA"
         ,bob.IS_GT_15_BIZDAYS                         AS IS_GT_15_BIZDAYS
         ,bob.IF_BUCKET1                               AS IF_BUCKET1
         ,bob.IF_BUCKET2                               AS IF_BUCKET2
@@ -48,6 +46,14 @@ CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}.FSA AS
         ,IFF(ORIGINAL_DDA IS NULL, DDA, ORIGINAL_DDA) AS FSA_UPDATED_ORIGINAL_DDA
         ,SPA.AVAIL_DATE                               AS "ITEM_AVAIL_DATE"
         ,NULL::TEXT									  AS FSA_OUTPUT_STATUS
+        ,bob.CAPPING_DDA                              AS "CAPPING_DDA"
+        ,prev.ORIG_CAP_DDA                            AS "PREV_CAPPING_DDA"
+        ,bob.AVAIL_DATE                               AS "NEW_AVAIL_DATE"
+        ,prev.PREV_AVAIL_DATE                         AS "PREV_AVAIL_DATE"
+        ,prev.PO_INDICATOR                            AS "PREV_PO_INDICATOR"
+        ,prev.PO_INDICATOR_ASSIGN                     AS "PREV_PO_INDICATOR_ASSIGN"
+        ,prev.PO_ORDER_NUMBER						  AS "PREV_PO_ORDER_NUMBER"
+        ,prev.PO_RECEIVE_BY_DATE					  AS "PREV_PO_RECEIVE_BY_DATE"
   FROM DEV.${FSA_CURRENT_SCHEMA}.SEQUENCING_PO_ASSIGN SPA
   INNER JOIN DEV.${FSA_CURRENT_SCHEMA}.BOB bob
     ON SPA.ID = bob.FK_SPA_ID
