@@ -192,7 +192,7 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.BOB AS
             ,bucket.ITEM
             ,bucket.FK_SPA_ID
             ,bucket.AVAIL_DATE::DATE AS AVAIL_DATE
-    	    ,bucket.ITEM_AVAIL_DATE
+    	      ,bucket.ITEM_AVAIL_DATE
             ,bucket.FREDD::DATE AS FREDD
             ,bucket.BUCKET_ON_AVAIL_DATE
             ,bucket.BUCKET_DATE_ON_AVAIL_DATE
