@@ -28,7 +28,9 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."SOLI" AS
            soli.AVAIL_DATE 		    AS "AVAIL_DATE", 		-- agg avail_date
            cal.MIN_ADD_15::DATE		AS "FREDD", 
            soli.ID 					AS "FK_SPA_ID", 
-           soli.SOURCE_LOAD_DATE 	AS "SOURCE_LOAD_DATE"
+           soli.SOURCE_LOAD_DATE 	AS "SOURCE_LOAD_DATE",
+          /* 20230605 - KBY, Hypercare Ref #117 - include SOURCE_TYPE */
+           soli.SOURCE_TYPE
            
          
            

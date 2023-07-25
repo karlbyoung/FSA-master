@@ -112,7 +112,12 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.BOB AS
               ,soli.FK_SPA_ID
               ,soli.SOURCE_LOAD_DATE
               ,c.MIN_ADD_12 AS AVAIL_DATE_ADD_12_BIZ
-              ,CASE WHEN soli.AVAIL_DATE <=      IF_BUCKET1                  THEN 'BUCKET2'
+              ,CASE WHEN soli.AVAIL_DATE <= CURRENT_DATE()
+                        /* 20230605 - KBY, Hypercare Ref #117 - any product with avail date today or before, place in BUCKET1 */
+                        THEN IFF(soli.SOURCE_TYPE = 'OpenSO','BUCKET1','BUCKET2')
+                    WHEN soli.AVAIL_DATE <=      IF_BUCKET1
+                        /* 20230605 - KBY, Hypercare Ref #117 - use BUCKET1 */
+                        THEN IFF(soli.SOURCE_TYPE = 'OpenSO','BUCKET1','BUCKET2')
                     WHEN soli.AVAIL_DATE BETWEEN IF_BUCKET1  AND IF_BUCKET2  THEN 'BUCKET2'
                     WHEN soli.AVAIL_DATE BETWEEN IF_BUCKET2  AND IF_BUCKET3  THEN 'BUCKET3'
                     WHEN soli.AVAIL_DATE BETWEEN IF_BUCKET3  AND IF_BUCKET4  THEN 'BUCKET4'
@@ -127,7 +132,12 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.BOB AS
                     WHEN soli.AVAIL_DATE BETWEEN IF_BUCKET12 AND IF_BUCKET13 THEN 'BUCKET13'
                     WHEN soli.AVAIL_DATE BETWEEN IF_BUCKET13 AND IF_BUCKET14 THEN 'BUCKET14'
     				END AS "BUCKET_ON_AVAIL_DATE"
-              ,CASE WHEN soli.AVAIL_DATE <=      IF_BUCKET1                  THEN IF_BUCKET2
+              ,CASE WHEN soli.AVAIL_DATE <= CURRENT_DATE()
+                        /* 20230605 - KBY, Hypercare Ref #117 - any sales item with avail date today or before, place in BUCKET1 */
+                        THEN IFF(soli.SOURCE_TYPE = 'OpenSO',IF_BUCKET1,IF_BUCKET2)
+                    WHEN soli.AVAIL_DATE <=      IF_BUCKET1
+                        /* 20230605 - KBY, Hypercare Ref #117 - use BUCKET1 */
+                        THEN IFF(soli.SOURCE_TYPE = 'OpenSO',IF_BUCKET1,IF_BUCKET2)
                     WHEN soli.AVAIL_DATE BETWEEN IF_BUCKET1  AND IF_BUCKET2  THEN IF_BUCKET2
                     WHEN soli.AVAIL_DATE BETWEEN IF_BUCKET2  AND IF_BUCKET3  THEN IF_BUCKET3
                     WHEN soli.AVAIL_DATE BETWEEN IF_BUCKET3  AND IF_BUCKET4  THEN IF_BUCKET4
