@@ -130,8 +130,9 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQUENCING_PO_ASSIGN AS
       	 ,CASE 
          
            /* 20230607 - AC - REVIEW AND DELETE ON 6/08 */
-           WHEN a.PO_INDICATOR = '-1' AND a.PO_INDICATOR_ASSIGN = '1' AND a.SOURCE_TYPE IN ('OpenSO', 'XFER') AND a.TYPE_NAME = 'Assembly'
-       		THEN a.AVAIL_DATE
+           /* 20230608 - KBY - Removed, to avoid AVAIL_DATE constantly incrementing day by day (after initial setting to "today")
+          --WHEN a.PO_INDICATOR = '-1' AND a.PO_INDICATOR_ASSIGN = '1' AND a.SOURCE_TYPE IN ('OpenSO', 'XFER') AND a.TYPE_NAME = 'Assembly'
+       		--THEN a.AVAIL_DATE
            /* ---- */ 
            
            WHEN NULLIF(a.PO_ORDER_NUMBER,'0') != NULLIF(prev.PO_ORDER_NUMBER,'0') 

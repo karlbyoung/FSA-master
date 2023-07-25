@@ -37,6 +37,8 @@ while (PO_ID <= MAX_PO_ID) {
                            ,SO.QTY_ORDERED
                            ,SO.REMAINING_QTY_ON_HAND
                            ,SO.TOTAL_QTY_SOLD
+                           /*  20230608 - KBY, HyperCare 123 - When OpenSO is already assigned (has valid Location), IS_ALREADY_ASSIGNED contains TRUE */
+                           ,SO.IS_ALREADY_ASSIGNED
                            ,SO.DDA
                            ,SO.ITEM
                            ,SO.LOCATION
