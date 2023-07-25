@@ -1,10 +1,10 @@
-CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}.DEMAND_PO_ALL AS 
+CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.DEMAND_PO_ALL AS 
 (
   WITH DEMAND_PO_LOAD AS (
       SELECT *
     		 EXCLUDE TRANSACTION_TYPE,
              IFF(TRANSACTION_TYPE = 'Sale' AND SALES_ORDER_TYPE = 104,'Reserve Order', TRANSACTION_TYPE) AS TRANSACTION_TYPE
-      FROM DEV.${FSA_CURRENT_SCHEMA}."V_DEMAND_PO"
+      FROM DEV.${FSA_PROD_SCHEMA}."V_DEMAND_PO"
       WHERE "ORDER_NUMBER" NOT IN ('Planning%')
       AND IFNULL("SO_MATERIAL_SUPPORT_STATUS", '') NOT IN (
            'M/Y: Complete - (23-24)'
@@ -15,6 +15,9 @@ CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}.DEMAND_PO_ALL AS
           ,'M/Y: Implementation Complete' 
    	  )
       AND IFF(SOURCETYPE = 'OpenSO', SALES_ORDER_TYPE IN ('2','104'), TRUE)
+      AND ORDER_NUMBER NOT IN ('26817','25981','26501') -- PROD ONLY
+      AND NOT (SOURCETYPE = 'Assembly' AND COMPONENT_ITEM IS NULL)
+      AND TYPE_NAME <> 'Kit/Package'
       ORDER BY TRANSACTION_TYPE, DDA, UNIQUE_KEY
   )
 
@@ -22,7 +25,7 @@ CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}.DEMAND_PO_ALL AS
     SELECT  PRI.ID                   AS "FK_ID"
            ,DPO.ORDER_NUMBER         AS "ORDER_NUMBER" 
            ,UNIQUE_KEY               AS "UNIQUE_KEY"
-       	   ,IFF(SOURCETYPE = 'OpenSO', ESTIMATED_DELIVERY_DATE::DATE, DDA)	 AS "DDA"
+       	   ,IFF(SOURCETYPE = 'OpenSO', IFF(ESTIMATED_DELIVERY_DATE IS NULL, CAL.MIN_ADD_15, ESTIMATED_DELIVERY_DATE::DATE), DDA) AS "DDA"
            -- ,DDA                      AS "DDA"
            ,IFF(UPPER("TRANSACTION_TYPE") = 'ASSEMBLY',
                 IFNULL(CAL."MIN_ADD_10", CAL."NEXT_BUSINESS_DAY"),
@@ -47,11 +50,11 @@ CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}.DEMAND_PO_ALL AS
     	   ,TRANSACTION_CREATE_DATE  AS "CREATE_DATE"
            -- ,CAL.*
     FROM DEMAND_PO_LOAD DPO
-    INNER JOIN DEV.${FSA_CURRENT_SCHEMA}."DEMAND_PRIORITY" PRI
+    INNER JOIN DEV.${FSA_PROD_SCHEMA}."DEMAND_PRIORITY" PRI
             ON DPO.TRANSACTION_TYPE = PRI.SEQ_DESC
            AND DPO.PRIORITY_LEVEL   = PRI.PRIORITY
     LEFT JOIN "DEV"."BUSINESS_OPERATIONS"."DIM_FULFILLMENT_CALENDAR" CAL
-           ON CAL.RAW_DATE = DDA
+           ON CAL.RAW_DATE = CURRENT_DATE()
   )
 
   ,"CTE_SEQ_DDA" AS (
@@ -92,12 +95,37 @@ CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}.DEMAND_PO_ALL AS
              ON s.ORDER_NUMBER = d.ORDER_NUMBER
   )
 
-  SELECT *
-       , FALSE                                               AS "PO_SLIPPAGE"
-       , HASH(*)::TEXT                                       AS "HASH_VALUE"
-  	   , NULL 				                                 AS "FSA_LOAD_STATUS"
-       , CURRENT_TIMESTAMP()                                 AS "INSERT_DATE"
-  	   , ROW_NUMBER() OVER (ORDER BY TRANSACTION_TYPE, DDA)  AS "ID"
-  	   ,"UNIQUE_KEY"||'^'||ZEROIFNULL("COMPONENT_ITEM_ID")::TEXT AS "PK_ID"
+  SELECT "FK_ID"                                                  AS "FK_ID"
+       , "ORDER_NUMBER"                                           AS "ORDER_NUMBER"
+       , "UNIQUE_KEY"                                             AS "UNIQUE_KEY"
+       , "DDA"                                                    AS "DDA"
+       , "DDA_MODIFIED"                                           AS "DDA_MODIFIED"
+       , "ORIGINAL_DDA"                                           AS "ORIGINAL_DDA"
+       , "SEQUENCING_DDA"                                         AS "SEQUENCING_DDA"
+       , "TRANSACTION_ID"                                         AS "TRANSACTION_ID"
+       , "LINE_ID"                                                AS "LINE_ID"
+       , "TRANSACTION_TYPE"                                       AS "TRANSACTION_TYPE"
+       , "TYPE_NAME"                                              AS "TYPE_NAME"
+       , "TOTAL_AMT"                                              AS "TOTAL_AMT"
+       , "PRIORITY_LEVEL"                                         AS "PRIORITY_LEVEL"
+       , "NS_LINE_NUMBER"                                         AS "NS_LINE_NUMBER"
+       , "ITEM"                                                   AS "ITEM"
+       , "ITEM_ID"                                                AS "ITEM_ID"
+       , "COMPONENT_ITEM_ID"                                      AS "COMPONENT_ITEM_ID"
+       , "COMPONENT_ITEM"                                         AS "COMPONENT_ITEM"
+       , IFF("IS_ASSEMBLY_COMPONENT","COMPONENT_QTY_ORDERED","QUANTITY") AS "QUANTITY"
+       , "TOTAL_AVAIL_QTY"                                        AS "TOTAL_AVAIL_QTY"
+       , "QUANTITY"                                               AS "QTY_ORDERED"
+       , "COMPONENT_QTY_ORDERED"                                  AS "COMPONENT_QTY_ORDERED"
+       , "LOCATION"                                               AS "LOCATION"
+       , "SOURCE_TYPE"                                            AS "SOURCE_TYPE"
+       , "IS_ASSEMBLY_COMPONENT"                                  AS "IS_ASSEMBLY_COMPONENT"
+       , "CREATE_DATE"                                            AS "CREATE_DATE"
+       , FALSE                                                    AS "PO_SLIPPAGE"
+       , HASH(*)::TEXT                                            AS "HASH_VALUE"
+  	   , NULL 				                                      AS "FSA_LOAD_STATUS"
+       , CURRENT_TIMESTAMP()                                      AS "INSERT_DATE"
+  	   , ROW_NUMBER() OVER (ORDER BY TRANSACTION_TYPE, DDA)       AS "ID"
+  	   , "UNIQUE_KEY"||'^'||ZEROIFNULL("COMPONENT_ITEM_ID")::TEXT AS "PK_ID"
   FROM "DEMAND_NO_HASH"
 );

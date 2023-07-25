@@ -69,24 +69,24 @@ SELECT
     ,(polia.QUANTITY*.9)-ZEROIFNULL(QUANTITY_RECEIVED) as QUANITITY_TO_BE_RECEIVED
     ,(polia.QUANTITY*.9) as QUANITITY_TO_BE_RECEIVED_90
                              
-FROM NETSUITE2_SANDBOX_FSA.NS_PURCHASE_ORDER_LINE_ITEM_AUX polia 
-   JOIN DEV.NETSUITE2_SANDBOX.FACT_PURCHASE_ORDER_LINE_ITEM poli 
+FROM NETSUITE2_FSA.NS_PURCHASE_ORDER_LINE_ITEM_AUX polia 
+   JOIN DEV.NETSUITE2.FACT_PURCHASE_ORDER_LINE_ITEM poli 
        on polia.UNIQUE_KEY = poli.UNIQUE_KEY 
-   JOIN DEV.NETSUITE2_SANDBOX.FACT_PURCHASE_ORDER po 
+   JOIN DEV.NETSUITE2.FACT_PURCHASE_ORDER po 
        on polia.PURCHASE_ORDER_TRANSACTION_ID = po.PURCHASE_ORDER_TRANSACTION_ID 
-   JOIN "DEV"."NETSUITE2_SANDBOX"."DIM_ITEM" i 
+   JOIN "DEV"."NETSUITE2"."DIM_ITEM" i 
        on polia.ASSEMBLY_ELSE_ITEM_ID = i.ITEM_ID
-   JOIN "DEV"."NETSUITE2_SANDBOX"."FACT_TRANSACTION_LINE" ftl -- Get the Main Line to get the Product Line (Class) of the PO
+   JOIN "DEV"."NETSUITE2"."FACT_TRANSACTION_LINE" ftl -- Get the Main Line to get the Product Line (Class) of the PO
        on po.PURCHASE_ORDER_TRANSACTION_ID = ftl.TRANSACTION_ID      
        and ftl.TRANSACTION_LINE_ID = 0    
-   LEFT JOIN DEV.NETSUITE2_SANDBOX_FSA.NS_ITEMS_COMPONENTS ic
+   LEFT JOIN DEV.NETSUITE2_FSA.NS_ITEMS_COMPONENTS ic
         on polia.ASSEMBLY_ELSE_ITEM_ID = ic.ITEM_ID
         and ic.ITEM_TYPE = 'Assembly'
-   LEFT JOIN DEV.NETSUITE2_SANDBOX.DIM_ITEM i_component
+   LEFT JOIN DEV.NETSUITE2.DIM_ITEM i_component
         on ic.COMPONENT_ITEM_ID = i_component.ITEM_ID
-   JOIN DEV.NETSUITE2_RAW_RESTRICT_SANDBOX.LOCATION loc //join added for RFS23-1189. Restrict to certain locations.
+   JOIN DEV.NETSUITE2_RAW_RESTRICT.LOCATION loc //join added for RFS23-1189. Restrict to certain locations.
         on po.LOCATION = loc.NAME
-        and CUSTRECORD_FSA_LOCATION_ELEVANT = 'T'                              
+        and CUSTRECORD_FSA_LOCATION_RELEVANT = 'T'                              
 WHERE polia._POLI_IS_RECEIVED = 'FALSE'
        and po.order_number  not like  ('Planning%') --10/27/2022
        and po.status not in ('Closed','Fully Billed') //2023.04.04:JB:added this condition for RFS23-1190

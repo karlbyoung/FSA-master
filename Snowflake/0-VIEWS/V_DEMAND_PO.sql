@@ -65,8 +65,8 @@ WITH CTE_XFER AS (
         , IFNULL(TOLI.QUANTITY_FULFILLED, 0) AS QUANTITY_FULFILLED                                   
         , TORD.* RENAME TRANSACTION_TYPE AS "HEADER_TRANSACTION_TYPE"
         , TOLI.*                       
-    FROM DEV.NETSUITE2_SANDBOX.FACT_TRANSFER_ORDER_LINE_ITEM TOLI
-    JOIN DEV.NETSUITE2_SANDBOX.FACT_TRANSFER_ORDER TORD
+    FROM DEV.NETSUITE2.FACT_TRANSFER_ORDER_LINE_ITEM TOLI
+    JOIN DEV.NETSUITE2.FACT_TRANSFER_ORDER TORD
         ON TOLI.TRANSFER_ORDER_TRANSACTION_ID = TORD.TRANSFER_ORDER_TRANSACTION_ID
         AND TORD.STATUS NOT IN ('Closed', 'Cancelled')
         AND LOWER(TORD.LOCATION_TO) LIKE '%depo%'
@@ -126,25 +126,26 @@ WITH CTE_XFER AS (
         , B.CREATE_DATE
         , FSOLI.ESTIMATED_DELIVERY_DATE
         , B.SALES_ORDER_TYPE
-    FROM DEV.NETSUITE2_SANDBOX_FSA.NS_SALES_ORDER_LINE_ITEM A
-    JOIN DEV.NETSUITE2_SANDBOX.FACT_SO_LINE_ITEM FSOLI
+    FROM DEV.NETSUITE2_FSA.NS_SALES_ORDER_LINE_ITEM A
+    JOIN DEV.NETSUITE2.FACT_SO_LINE_ITEM FSOLI
         ON A.SOLI_UNIQUE_KEY = FSOLI.UNIQUE_KEY
-    LEFT OUTER JOIN DEV.NETSUITE2_SANDBOX_FSA.NS_ITEMS_AT_LOCATIONS D
+    LEFT OUTER JOIN DEV.NETSUITE2_FSA.NS_ITEMS_AT_LOCATIONS D
         ON A.SOLI_ITEM_ID = D.ITEM_ID  
         AND A.IFFLI_LOCATION = D.LOCATION
-    LEFT OUTER JOIN DEV.NETSUITE2_SANDBOX.FACT_SALES_ORDER B
+    LEFT OUTER JOIN DEV.NETSUITE2.FACT_SALES_ORDER B
         ON A.SO_TRANSACTION_ID = B.SALES_ORDER_TRANSACTION_ID
     LEFT OUTER JOIN (
         SELECT SALES_ORDER_TRANSACTION_ID
             , SUM(AMOUNT) AS TOTAL 
-        FROM DEV.NETSUITE2_SANDBOX.FACT_SO_LINE_ITEM 
+        FROM DEV.NETSUITE2.FACT_SO_LINE_ITEM 
         GROUP BY sales_order_transaction_id
         ) C
         ON B.SALES_ORDER_TRANSACTION_ID = C.SALES_ORDER_TRANSACTION_ID       
      WHERE  
         (A.SOLI_LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
                                'LSC Owensville','LSC Airwest','LSC Linn',
-                               'Barrett Distribution','hand2mind','JPS Graphics')
+                               'Barrett Distribution','hand2mind','JPS Graphics',
+                               'Not Yet Assigned')
         -- (A.SOLI_LOCATION IN ('hand2mind', 'BR Printers', 'JPS Graphics', 'LSC Owensville', 'Wards VWR', 'Not Yet Assigned')
         OR A.SOLI_LOCATION IS NULL)
         AND A.SOLI_IS_FULFILLED = 'FALSE' --line is open
@@ -171,17 +172,17 @@ WITH CTE_XFER AS (
         , POLIA.QUANTITY_REMAINING_MIN_ACCEPTABLE /*||JB.2023.03.29| value calculated in POLIA table.  ||(POLIA.QUANTITY*.9)-ZEROIFNULL(QUANTITY_RECEIVED)*/ * IC.COMPONENT_ITEM_QUANTITY AS COMPONENT_QTY_TO_BE_FULFILLED -- if this is an Assembly Component, the qty of the component needed to fulfill the QTY of the Kit
         , POLI.NS_LINE_NUMBER 
         , PO.CREATE_DATE
-    FROM DEV.NETSUITE2_SANDBOX.FACT_PURCHASE_ORDER PO
-    JOIN DEV.NETSUITE2_SANDBOX_FSA.NS_PURCHASE_ORDER_LINE_ITEM_AUX POLIA
+    FROM DEV.NETSUITE2.FACT_PURCHASE_ORDER PO
+    JOIN DEV.NETSUITE2_FSA.NS_PURCHASE_ORDER_LINE_ITEM_AUX POLIA
         ON PO.PURCHASE_ORDER_TRANSACTION_ID = POLIA.PURCHASE_ORDER_TRANSACTION_ID
-    JOIN DEV.NETSUITE2_SANDBOX.FACT_PURCHASE_ORDER_LINE_ITEM POLI
+    JOIN DEV.NETSUITE2.FACT_PURCHASE_ORDER_LINE_ITEM POLI
         ON POLIA.UNIQUE_KEY = POLI.UNIQUE_KEY
-    JOIN DEV.NETSUITE2_SANDBOX.DIM_ITEM i
+    JOIN DEV.NETSUITE2.DIM_ITEM i
         ON POLIA.ASSEMBLY_ELSE_ITEM_ID = i.ITEM_ID 
-    LEFT JOIN DEV.NETSUITE2_SANDBOX_FSA.NS_ITEMS_COMPONENTS IC
+    LEFT JOIN DEV.NETSUITE2_FSA.NS_ITEMS_COMPONENTS IC
         ON POLIA.ASSEMBLY_ELSE_ITEM_ID = IC.ITEM_ID   --- 10/20/2022 with Joseph's help and updated on Tech Doc 
         AND IC.ITEM_TYPE = 'Assembly'
-    LEFT JOIN DEV.NETSUITE2_SANDBOX.DIM_ITEM i_component
+    LEFT JOIN DEV.NETSUITE2.DIM_ITEM i_component
         ON IC.COMPONENT_ITEM_ID = i_component.ITEM_ID
     WHERE POLIA._POLI_IS_RECEIVED = 'FALSE' --line is open
         AND POLIA.PO_PRODUCT_LINE NOT IN ('General', 'Other')
@@ -198,13 +199,14 @@ Recommendation: Use Business Operations maintained DEV.NETSUITE2_FSA.NS_ITEMS_AT
         , I.NAME AS ITEM  
         , I.TYPE_NAME
         , SUM(NSIAL.QTY_AVAILABLE) AS TOTAL_AVAIL_QTY
-    FROM DEV.NETSUITE2_SANDBOX_FSA.NS_ITEMS_AT_LOCATIONS NSIAL
-    JOIN DEV.NETSUITE2_SANDBOX.DIM_ITEM I
+    FROM DEV.NETSUITE2_FSA.NS_ITEMS_AT_LOCATIONS NSIAL
+    JOIN DEV.NETSUITE2.DIM_ITEM I
         ON NSIAL.ITEM_ID = I.ITEM_ID
     WHERE 1=1
         AND NSIAL.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
                                'LSC Owensville','LSC Airwest','LSC Linn',
-                               'Barrett Distribution','hand2mind','JPS Graphics')
+                               'Barrett Distribution','hand2mind','JPS Graphics',
+                               'Not Yet Assigned')
         -- AND NSIAL.LOCATION IN ('hand2mind', 'BR Printers', 'JPS Graphics', 'LSC Owensville', 'Wards VWR', 'Not Yet Assigned')
         AND IS_KIT = 'FALSE' -- exclude the Kit records. Their inventory is virtual. It does not actually exist
     GROUP BY NSIAL.ITEM_ID
@@ -235,7 +237,7 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
         , MSTR_WIDTH
         , MSTR_HEIGHT
         , LSC_L_W_H
-    FROM DEV.NETSUITE2_SANDBOX_FSA.V_DIM_CARTONS_LOOSE
+    FROM DEV.NETSUITE2_FSA.V_DIM_CARTONS_LOOSE
 )   
     
  ------------------------------------------------------------------------------------------------------------------------------------------------
@@ -367,14 +369,15 @@ UNION
         , NULL AS ESTIMATED_DELIVERY_DATE
         , NULL AS SALES_ORDER_TYPE
     FROM CTE_PO_DETAIL A 
-    INNER JOIN DEV.NETSUITE2_SANDBOX_FSA.V_OPENPO B
+    INNER JOIN DEV.NETSUITE2_FSA.V_OPENPO B
         ON A.ORDER_NUMBER = B.ORDER_NUMBER
         AND A.ASSEMBLY_ELSE_ITEM_ID = B.ASSEMBLY_ELSE_ITEM_ID
     WHERE 
         -- B.LOCATION IN ('hand2mind', 'BR Printers', 'JPS Graphics', 'LSC Owensville', 'Wards VWR', 'Not Yet Assigned')
         B.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
                                'LSC Owensville','LSC Airwest','LSC Linn',
-                               'Barrett Distribution','hand2mind','JPS Graphics')
+                               'Barrett Distribution','hand2mind','JPS Graphics',
+                               'Not Yet Assigned')
         AND A.TYPE_NAME = 'Assembly'
         AND YEAR(RECEIVE_BY_DATE) >= 2022
     GROUP BY A.ORDER_NUMBER
@@ -401,7 +404,7 @@ UNION
         , DI.TYPE_NAME
         , CAST(C.MASTERQTY AS varchar) AS NUMBER_IN_CARTON
     FROM CTE_SOURCES_ASSIGN_PO A
-    LEFT OUTER JOIN DEV.NETSUITE2_SANDBOX.DIM_ITEM DI 
+    LEFT OUTER JOIN DEV.NETSUITE2.DIM_ITEM DI 
         ON A.ITEM_ID = DI.ITEM_ID    
     LEFT OUTER JOIN CTE_INVENTORY B  
         ON IFNULL(A.COMPONENT_ITEM_ID, A.ITEM_ID) = B.ITEM_ID 
@@ -409,4 +412,5 @@ UNION
         ON IFNULL(A.COMPONENT_ITEM_ID, A.ITEM_ID) = C.ITEM_ID     
     WHERE CAST(A.ORDER_NUMBER AS varchar) NOT LIKE ('%Planning%')
 ) AS "v_0000003085_0015756651"
-);
+)
+;

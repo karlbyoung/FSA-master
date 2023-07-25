@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE DEV.${FSA_CURRENT_SCHEMA}.ASSIGN_PO()
+CREATE OR REPLACE PROCEDURE DEV.${FSA_PROD_SCHEMA}.ASSIGN_PO()
 RETURNS STRING
 LANGUAGE JAVASCRIPT
 AS
@@ -9,7 +9,7 @@ $$
     var PO_ID = 1;      /* PO_ID COUNTER      */
     
 var crd = snowflake.execute({sqlText: `SELECT MAX(INSERT_DATE)::DATE::TEXT
-                                     FROM DEV.${FSA_CURRENT_SCHEMA}.DEMAND_PO;`});
+                                     FROM DEV.${FSA_PROD_SCHEMA}.DEMAND_PO;`});
 crd.next();
 CUR_RUN_DATE = crd.getColumnValue(1);
 
@@ -18,13 +18,13 @@ CUR_RUN_DATE = `'` + CUR_RUN_DATE + `'`;
 
 
 var x = snowflake.execute({sqlText: `SELECT MAX(PO_ID)
-                                     FROM DEV.${FSA_CURRENT_SCHEMA}.UNASSIGNED_DEMAND;`});
+                                     FROM DEV.${FSA_PROD_SCHEMA}.UNASSIGNED_DEMAND;`});
 x.next();
 MAX_PO_ID = x.getColumnValue(1);
 
 while (PO_ID <= MAX_PO_ID) {
     
-    var foo_sql = `CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}."DEMAND_ASSIGNMENT_TRACKED" AS
+    var foo_sql = `CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."DEMAND_ASSIGNMENT_TRACKED" AS
                        SELECT DISTINCT
                             SO.PO_ID
                            ,SO.FSA_LOAD_STATUS::TEXT AS "FSA_LOAD_STATUS"
@@ -66,8 +66,8 @@ while (PO_ID <= MAX_PO_ID) {
                            ,("PO_QUANTITY_TO_BE_RECEIVED" - SO."QTY_ORDERED") AS "PO_QUANTITY_REMAINING"
                            ,FIRST_VALUE(OP."NS_RECEIVE_BY_DATE")      OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP."NS_RECEIVE_BY_DATE", OP."ORDER_NUMBER") AS "PO_RECEIVE_BY_DATE"
                            ,OP.OG_QUANTITY_TO_BE_RECEIVED
-                       FROM DEV.${FSA_CURRENT_SCHEMA}."UNASSIGNED_DEMAND" SO
-                       LEFT OUTER JOIN DEV.${FSA_CURRENT_SCHEMA}."OPEN_PO_TRACKED" OP
+                       FROM DEV.${FSA_PROD_SCHEMA}."UNASSIGNED_DEMAND" SO
+                       LEFT OUTER JOIN DEV.${FSA_PROD_SCHEMA}."OPEN_PO_TRACKED" OP
                          ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" =  OP."ITEM_ID" 
                          AND SO."QTY_ORDERED"                 <= OP."QUANTITY_TO_BE_RECEIVED"
                        WHERE OP."ORDER_NUMBER" IS NOT NULL AND "PO_ID" = ` + PO_ID + ` 
@@ -75,7 +75,7 @@ while (PO_ID <= MAX_PO_ID) {
 
     snowflake.execute({sqlText: foo_sql})
 
-    var open_po_sql = `CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}.OPEN_PO_TRACKED AS
+    var open_po_sql = `CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.OPEN_PO_TRACKED AS
                        SELECT DISTINCT OP.PO_ITEM_ID
                        	             , OP.ITEM_ID
                                      , OP.ITEM_ID_C
@@ -85,8 +85,8 @@ while (PO_ID <= MAX_PO_ID) {
                                      , IFF(SO."PO_QUANTITY_REMAINING" IS NOT NULL, SO."PO_QUANTITY_REMAINING", OP."QUANTITY_TO_BE_RECEIVED") AS "QUANTITY_TO_BE_RECEIVED"
                                      , OP.NS_RECEIVE_BY_DATE
                                      , OP.PO_ROW_NO
-                       FROM DEV.${FSA_CURRENT_SCHEMA}."OPEN_PO_TRACKED" OP
-                       LEFT OUTER JOIN DEV.${FSA_CURRENT_SCHEMA}."DEMAND_ASSIGNMENT_TRACKED" SO
+                       FROM DEV.${FSA_PROD_SCHEMA}."OPEN_PO_TRACKED" OP
+                       LEFT OUTER JOIN DEV.${FSA_PROD_SCHEMA}."DEMAND_ASSIGNMENT_TRACKED" SO
                        	 ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" = OP."ITEM_ID" 
                          AND SO."PO_ORDER_NUMBER"             = OP."ORDER_NUMBER"
                          AND SO."PO_RECEIVE_BY_DATE"          = OP."NS_RECEIVE_BY_DATE"`;
@@ -94,11 +94,11 @@ while (PO_ID <= MAX_PO_ID) {
     snowflake.execute({sqlText: open_po_sql})
 
     
-    var good_demand_sql = `CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}.ASSIGNED_DEMAND AS
+    var good_demand_sql = `CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.ASSIGNED_DEMAND AS
                            SELECT *
-                           FROM (SELECT * FROM DEV.${FSA_CURRENT_SCHEMA}.ASSIGNED_DEMAND
+                           FROM (SELECT * FROM DEV.${FSA_PROD_SCHEMA}.ASSIGNED_DEMAND
                                  UNION
-                                 SELECT * FROM DEV.${FSA_CURRENT_SCHEMA}.DEMAND_ASSIGNMENT_TRACKED)
+                                 SELECT * FROM DEV.${FSA_PROD_SCHEMA}.DEMAND_ASSIGNMENT_TRACKED)
                            ORDER BY ITEM_ID, ROW_NO`;
 
     snowflake.execute({sqlText: good_demand_sql});
