@@ -209,7 +209,7 @@ CREATE OR REPLACE TABLE DEV.${FSA_CURRENT_SCHEMA}.BOB AS
             ,bucket.UNIQUE_KEY
             ,bucket.NS_LINE_NUMBER
             ,bucket.ITEM_NO
-            ,bucket.FK_SPA_ID
+            ,bucket.
             ,bucket.RECEIPT_DATE::DATE      AS RECEIPT_DATE
     	    ,bucket.ITEM_AVAIL_DATE
             ,bucket.FREDD::DATE             AS FREDD
