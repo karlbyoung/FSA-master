@@ -42,6 +42,9 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.DEMAND_PO_ALL AS
            ,COMPONENT_ITEM           AS "COMPONENT_ITEM"          
            ,QTY_ORDERED              AS "QTY_ORDERED"       
            ,TOTAL_AVAIL_QTY          AS "TOTAL_AVAIL_QTY"           
+          /* 20230711 - KBY, RFS23-1850 - Include inventories for FSA forward-facing-only locations also */
+           ,TOTAL_AVAIL_QTY_FWD      AS "TOTAL_AVAIL_QTY_FWD"
+           ,TOTAL_AVAIL_QTY_NONFWD   AS "TOTAL_AVAIL_QTY_NONFWD"
            ,COMPONENT_QTY_ORDERED    AS "COMPONENT_QTY_ORDERED"                 
            ,LOCATION                 AS "LOCATION"    
            ,SOURCETYPE               AS "SOURCETYPE"      
@@ -85,6 +88,9 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.DEMAND_PO_ALL AS
     		,NULLIF(d.COMPONENT_ITEM, '') 	AS "COMPONENT_ITEM" --,IFF(d.COMPONENT_ITEM = '', NULL, d.COMPONENT_ITEM) AS "COMPONENT_ITEM"
             ,d.QTY_ORDERED            		AS "QUANTITY"
             ,d.TOTAL_AVAIL_QTY              AS "TOTAL_AVAIL_QTY"
+          /* 20230711 - KBY, RFS23-1850 - Include inventories for FSA forward-facing-only locations also */
+            ,d.TOTAL_AVAIL_QTY_FWD          AS "TOTAL_AVAIL_QTY_FWD"
+            ,d.TOTAL_AVAIL_QTY_NONFWD       AS "TOTAL_AVAIL_QTY_NONFWD"
             ,d.COMPONENT_QTY_ORDERED        AS "COMPONENT_QTY_ORDERED"
             ,d.LOCATION                     AS "LOCATION"
             ,d.SOURCETYPE             		AS "SOURCE_TYPE"
@@ -115,6 +121,9 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.DEMAND_PO_ALL AS
        , "COMPONENT_ITEM"                                         AS "COMPONENT_ITEM"
        , IFF("IS_ASSEMBLY_COMPONENT","COMPONENT_QTY_ORDERED","QUANTITY") AS "QUANTITY"
        , "TOTAL_AVAIL_QTY"                                        AS "TOTAL_AVAIL_QTY"
+          /* 20230711 - KBY, RFS23-1850 - Include inventories for FSA forward-facing-only locations also */
+       , "TOTAL_AVAIL_QTY_FWD"                                    AS "TOTAL_AVAIL_QTY_FWD"
+       , "TOTAL_AVAIL_QTY_NONFWD"                                 AS "TOTAL_AVAIL_QTY_NONFWD"
        , "QUANTITY"                                               AS "QTY_ORDERED"
        , "COMPONENT_QTY_ORDERED"                                  AS "COMPONENT_QTY_ORDERED"
        , "LOCATION"                                               AS "LOCATION"

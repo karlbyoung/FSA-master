@@ -26,7 +26,10 @@ create or replace view V_DEMAND_PO(
 	NUMBER_IN_CARTON,
 	TRANSACTION_CREATE_DATE,
 	ESTIMATED_DELIVERY_DATE,
-	SALES_ORDER_TYPE
+	SALES_ORDER_TYPE,
+    /* 20230711 - KBY, RFS23-1850 - Include inventories for all FSA locations, and for forward-facing locations only */
+    TOTAL_AVAIL_QTY_FWD,
+    TOTAL_AVAIL_QTY_NONFWD
 ) as (
 SELECT 
   "ORDER_NUMBER", 
@@ -56,7 +59,10 @@ SELECT
   "NUMBER_IN_CARTON",
   "CREATE_DATE",
   "ESTIMATED_DELIVERY_DATE",
-  "SALES_ORDER_TYPE"
+  "SALES_ORDER_TYPE",
+    /* 20230711 - KBY, RFS23-1850 - Include inventories for all FSA locations, and for forward-facing locations only */
+  "TOTAL_AVAIL_QTY_FWD",
+  "TOTAL_AVAIL_QTY_NONFWD"
 FROM (------ 1. TRANSFER ORDER ------
 
 WITH CTE_XFER AS (
@@ -174,6 +180,7 @@ WITH CTE_XFER AS (
         , (POLIA.QUANTITY-ZEROIFNULL(QUANTITY_RECEIVED) ) * IC.COMPONENT_ITEM_QUANTITY AS COMPONENT_QTY_TO_BE_FULFILLED -- if this is an Assembly Component, the qty of the component needed to fulfill the QTY of the Kit
         , POLI.NS_LINE_NUMBER 
         , PO.CREATE_DATE
+        , PO.PURCHASE_ORDER_TRANSACTION_ID  -- 20230710 - KBY, Include Transaction ID's for Assembly as well
     FROM DEV.NETSUITE2.FACT_PURCHASE_ORDER PO
     JOIN DEV.NETSUITE2_FSA.NS_PURCHASE_ORDER_LINE_ITEM_AUX POLIA
         ON PO.PURCHASE_ORDER_TRANSACTION_ID = POLIA.PURCHASE_ORDER_TRANSACTION_ID
@@ -192,7 +199,7 @@ WITH CTE_XFER AS (
 )
     
 ---------  Inventory   
-    , CTE_INVENTORY AS (
+, CTE_INVENTORY_FWD AS (    -- Forward facing inventory
 /*||JB.2023.03.29|
 Recommendation: Use Business Operations maintained DEV.NETSUITE2_FSA.NS_ITEMS_AT_LOCATIONS table instead of tables in NETSUITE2_RAW_RESTRICT schema
 =============
@@ -201,7 +208,7 @@ Recommendation: Use Business Operations maintained DEV.NETSUITE2_FSA.NS_ITEMS_AT
     SELECT NSIAL.ITEM_ID
         , I.NAME AS ITEM  
         , I.TYPE_NAME
-        , SUM(NSIAL.QTY_AVAILABLE) AS TOTAL_AVAIL_QTY
+        , SUM(NSIAL.QTY_AVAILABLE) AS TOTAL_AVAIL_QTY_FWD
     FROM DEV.NETSUITE2_FSA.NS_ITEMS_AT_LOCATIONS NSIAL
     JOIN DEV.NETSUITE2.DIM_ITEM I
         ON NSIAL.ITEM_ID = I.ITEM_ID
@@ -209,8 +216,31 @@ Recommendation: Use Business Operations maintained DEV.NETSUITE2_FSA.NS_ITEMS_AT
         AND NSIAL.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
                                'LSC Owensville','LSC Airwest','LSC Linn',
                                'Barrett Distribution','hand2mind','JPS Graphics',
-                               'Not Yet Assigned'
-                               ,'Booksource', 'Continuum')
+                               'Not Yet Assigned')
+        /* 20230714 - KBY - Don't include negative numbers in sum of inventory */
+        AND NSIAL.QTY_AVAILABLE >= 0
+        AND IS_KIT = 'FALSE' -- exclude the Kit records. Their inventory is virtual. It does not actually exist
+    GROUP BY NSIAL.ITEM_ID
+        , I.NAME
+        , I.TYPE_NAME
+)
+, CTE_INVENTORY_NONFWD AS ( -- non-forward-facing inventory, i.e., assembly only
+/*||JB.2023.03.29|
+Recommendation: Use Business Operations maintained DEV.NETSUITE2_FSA.NS_ITEMS_AT_LOCATIONS table instead of tables in NETSUITE2_RAW_RESTRICT schema
+=============
+|*/
+
+    SELECT NSIAL.ITEM_ID
+        , I.NAME AS ITEM  
+        , I.TYPE_NAME
+        , SUM(NSIAL.QTY_AVAILABLE) AS TOTAL_AVAIL_QTY_NONFWD
+    FROM DEV.NETSUITE2_FSA.NS_ITEMS_AT_LOCATIONS NSIAL
+    JOIN DEV.NETSUITE2.DIM_ITEM I
+        ON NSIAL.ITEM_ID = I.ITEM_ID
+    WHERE 1=1
+        AND NSIAL.LOCATION IN ('Booksource', 'Continuum')
+        /* 20230714 - KBY - Don't include negative numbers in sum of inventory */
+        AND NSIAL.QTY_AVAILABLE >= 0
         AND IS_KIT = 'FALSE' -- exclude the Kit records. Their inventory is virtual. It does not actually exist
     GROUP BY NSIAL.ITEM_ID
         , I.NAME
@@ -362,7 +392,9 @@ UNION
         , 'Assembly' AS SOURCETYPE
         , TO_CHAR(A.NS_LINE_NUMBER) AS NS_LINE_NUMBER
         , TRY_TO_DATE('') AS ORG_DDA
-        , NULL AS TRANSACTION_ID  -- added 8/9/2022 for NS upload
+        /* 20230710 - KBY, Include Transaction ID's for Assembly as well */
+        /* , NULL AS TRANSACTION_ID  -- added 8/9/2022 for NS upload */
+        , CAST(A.PURCHASE_ORDER_TRANSACTION_ID AS VARCHAR(50)) AS TRANSACTION_ID
         , NULL AS LINE_ID -- added 8/9/2022 for NS upload
         --,'' AS DI_TYPE_NAME -- added 10/27/2022    
         , NULL AS SO_MULTISITE_ORDER --- added 11/16/2022
@@ -385,6 +417,7 @@ UNION
         AND A.TYPE_NAME = 'Assembly'
         AND YEAR(RECEIVE_BY_DATE) >= 2022
     GROUP BY A.ORDER_NUMBER
+        , A.PURCHASE_ORDER_TRANSACTION_ID -- 20230710 - KBY, Include Transaction ID's for Assembly as well
         , A.UNIQUE_KEY
         , A.TYPE_NAME
         , A.ITEM --, B.ISBN 
@@ -403,21 +436,30 @@ UNION
 ------------------------------------------------------------------------------------------------------------------------------------------------        
 
     SELECT A.*
-         , B.Total_AVAIL_QTY
-         , CASE WHEN B.Total_AVAIL_QTY >= A.QTY_ORDERED THEN 'Available' ELSE 'BackOrder' END AS BO_STATUS
-         , DI.TYPE_NAME
-         , CAST(C.MASTERQTY AS varchar) AS NUMBER_IN_CARTON
+        /* 20230711 - KBY, RFS23-1850 - Include inventories for all FSA locations, and for forward-facing locations only */
+         , ZEROIFNULL(B.Total_AVAIL_QTY_NONFWD) + ZEROIFNULL(INV_FWD.TOTAL_AVAIL_QTY_FWD)    AS TOTAL_AVAIL_QTY
+         , ZEROIFNULL(B.TOTAL_AVAIL_QTY_NONFWD)                                              AS TOTAL_AVAIL_QTY_NONFWD
+         , ZEROIFNULL(INV_FWD.TOTAL_AVAIL_QTY_FWD)                                           AS TOTAL_AVAIL_QTY_FWD
+         , CASE WHEN TOTAL_AVAIL_QTY >= A.QTY_ORDERED 
+                THEN 'Available' 
+                ELSE 'BackOrder' 
+            END                                                             AS BO_STATUS
+         , DI.TYPE_NAME                                                     AS TYPE_NAME
+         , CAST(C.MASTERQTY AS varchar)                                     AS NUMBER_IN_CARTON
     FROM CTE_SOURCES_ASSIGN_PO A
     LEFT OUTER JOIN DEV.NETSUITE2.DIM_ITEM DI 
-        ON A.ITEM_ID = DI.ITEM_ID    
-    LEFT OUTER JOIN CTE_INVENTORY B  
+        ON A.ITEM_ID = DI.ITEM_ID
+    /* 20230711 - KBY, RFS23-1850 - Include inventories for all FSA locations, and for forward-facing locations only */
+    LEFT OUTER JOIN CTE_INVENTORY_NONFWD B
         ON IFNULL(A.COMPONENT_ITEM_ID, A.ITEM_ID) = B.ITEM_ID 
+    LEFT OUTER JOIN CTE_INVENTORY_FWD INV_FWD
+        ON IFNULL(A.COMPONENT_ITEM_ID, A.ITEM_ID) = INV_FWD.ITEM_ID 
     LEFT OUTER JOIN CTE_CARTON C
         ON IFNULL(A.COMPONENT_ITEM_ID, A.ITEM_ID) = C.ITEM_ID     
     WHERE CAST(A.ORDER_NUMBER AS varchar) NOT LIKE ('%Planning%')
     AND IFNULL(A.COMPONENT_ITEM::TEXT, '0') NOT IN (SELECT COMPONENT_ITEM::TEXT FROM DEV.NETSUITE2_FSA.COMPONENT_ITEMS_TO_EXCLUDE)
     /* 20230614 - KBY, HyperCare Ref #129 - also exclude ITEMs that appear on COMPONENT_ITEM exclusion list */
     AND IFNULL(A.ITEM::TEXT, '0') NOT IN (SELECT COMPONENT_ITEM::TEXT FROM DEV.NETSUITE2_FSA.COMPONENT_ITEMS_TO_EXCLUDE)
-) AS "v_0000003085_0015756651"
+    ) AS "v_0000003085_0015756651"
 )
 ;

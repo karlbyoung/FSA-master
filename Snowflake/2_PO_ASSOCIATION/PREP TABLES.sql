@@ -34,5 +34,7 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.OPEN_PO_TRACKED AS
          , QUANTITY_TO_BE_RECEIVED
          , NS_RECEIVE_BY_DATE
          , PO_ROW_NO
+          /* 20230717 - KBY, RFS23-1850 - Distinguish forward-facing locations only */
+         , (LOCATION NOT IN ('Booksource', 'Continuum') ) AS "IS_FWD_LOCATION"
     FROM DEV.${FSA_PROD_SCHEMA}.OPEN_PO_ALL
     ORDER BY PO_ITEM_ID, PO_ROW_NO, NS_RECEIVE_BY_DATE, ORDER_NUMBER;

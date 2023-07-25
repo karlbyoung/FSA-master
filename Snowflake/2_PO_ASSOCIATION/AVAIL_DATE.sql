@@ -12,21 +12,14 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQUENCING_PO_ASSIGN_TMP1 AS
   SELECT  a.*
   		EXCLUDE (PO_QUANTITY_TO_BE_RECEIVED)
         , CASE 
-        -- WHEN PO_INDICATOR = 1
-        --   	THEN IFF(DDA < :cur_run_date, :cur_run_date, dda."MIN_SUB_15")
-        --   WHEN PO_INDICATOR = 0
-        --  	THEN IFF(dda60."MIN_SUB_15" < :cur_run_date, today60."MIN_SUB_15", dda60."MIN_SUB_15")
        	  WHEN PO_INDICATOR = -1
           	THEN IFF(PO_RECEIVE_BY_DATE < :cur_run_date, today."MIN_ADD_5", PO_RECEIVE_BY_DATE)
---          -- changed 2023-05-30, KBY
---          -- previous: 
---          ELSE IFF(DDA < :cur_run_date, :cur_run_date, dda."MIN_SUB_15")
---          -- use current date if PO_INDICATOR is non-negative, whether or not DDA is less than current date
           ELSE :cur_run_date  
         END AS "AVAIL_DATE"
   FROM (
       (SELECT * EXCLUDE OG_QUANTITY_TO_BE_RECEIVED
-            , IFF((REMAINING_QTY_ON_HAND >= 0 OR PO_ORDER_NUMBER IS NOT NULL), 1, 0) AS "PO_INDICATOR_ASSIGN"
+            /* 20230718 - KBY, RFS23-2047 - PO_INDICATOR_ASSIGN should be 1 if OpenSO is already assigned a location */
+            , IFF((IS_ALREADY_ASSIGNED OR REMAINING_QTY_ON_HAND >= 0 OR PO_ORDER_NUMBER IS NOT NULL), 1, 0) AS "PO_INDICATOR_ASSIGN"
             /*  20230609 - KBY, HyperCare 113 - change partition from parent (ITEM_ID) to individual (ITEM_ID_BY_TRANSACTION_TYPE) within the order */
             , MAX(PO_QUANTITY_TO_BE_RECEIVED) OVER (PARTITION BY ITEM_ID_BY_TRANSACTION_TYPE, PO_ORDER_NUMBER) AS "PO_TOTAL_QUANTITY_TO_BE_RECEIVED"
        FROM DEV.${FSA_PROD_SCHEMA}.ASSIGNED_DEMAND)
@@ -38,7 +31,8 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQUENCING_PO_ASSIGN_TMP1 AS
             , NULL AS "PO_QUANTITY_TO_BE_RECEIVED"
             , NULL AS "PO_QUANTITY_REMAINING"
             , NULL AS "PO_RECEIVE_BY_DATE"
-            , IFF((REMAINING_QTY_ON_HAND >= 0 OR PO_ORDER_NUMBER IS NOT NULL), 1, 0) AS "PO_INDICATOR_ASSIGN"
+            /* 20230718 - KBY, RFS23-2047 - PO_INDICATOR_ASSIGN should be 1 if OpenSO is already assigned a location */
+            , IFF((IS_ALREADY_ASSIGNED OR REMAINING_QTY_ON_HAND >= 0 OR PO_ORDER_NUMBER IS NOT NULL), 1, 0) AS "PO_INDICATOR_ASSIGN"
             , NULL AS "PO_TOTAL_QUANTITY_TO_BE_RECEIVED"
       FROM DEV.${FSA_PROD_SCHEMA}.UNASSIGNED_DEMAND
       WHERE (ORDER_NUMBER, NS_LINE_NUMBER, IFNULL(COMPONENT_ITEM_ID, 0)) NOT IN (
