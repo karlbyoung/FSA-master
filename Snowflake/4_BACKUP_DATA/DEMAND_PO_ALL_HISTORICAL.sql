@@ -31,6 +31,8 @@ SELECT
     CREATE_DATE, 
     PO_SLIPPAGE, 
     HASH_VALUE, 
+    /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
+    FR_PREV_DAYS,
     FSA_LOAD_STATUS, 
     INSERT_DATE, 
     ID, 

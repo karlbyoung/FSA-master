@@ -11,8 +11,8 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."SOLI" AS
     ,"SOLI_CTE" AS (
         SELECT seq.* RENAME "AVAIL_DATE" AS "ITEM_AVAIL_DATE"
               /* 20230607 - AC - Hypercare Ref #122 - Temp removal until data/logic resolved */
-      		  --,IFF(seq."SHARED_ORDER_NUMBER" IS NULL, "AVAIL_DATE", mad."MAX_AVAIL_DATE") AS "AVAIL_DATE"
-      		  ,"AVAIL_DATE"
+            --,IFF(seq."SHARED_ORDER_NUMBER" IS NULL, "AVAIL_DATE", mad."MAX_AVAIL_DATE") AS "AVAIL_DATE"
+            ,"AVAIL_DATE"
         FROM DEV.${FSA_PROD_SCHEMA}."SEQUENCING_PO_ASSIGN" seq
         LEFT JOIN "CTE_MAX_AVAIL" mad
           ON seq."ITEM_ID"             = mad."ITEM_ID"
@@ -28,9 +28,8 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."SOLI" AS
            soli.ITEM_ID				AS "ITEM_ID",
            soli.ITEM_AVAIL_DATE     AS "ITEM_AVAIL_DATE",   -- line avail_date
            soli.AVAIL_DATE 		    AS "AVAIL_DATE", 		-- agg avail_date
---          /* 20230718 - KBY, RFS23-2033 - Adjust FREDD calculation to account for shorter turnaround at 3PLs */ ADD IN CONNECTION WITH NETSUITE2 change
---           cal.MIN_ADD_7::DATE		AS "FREDD", 
-           cal.MIN_ADD_15::DATE		AS "FREDD", 
+          /* 202307126 - KBY, RFS23-2033 - Adjust FREDD calculation to account for shorter turnaround at 3PLs */
+           cal.LAND_DATE		AS "FREDD", 
            soli.ID 					AS "FK_SPA_ID", 
            soli.SOURCE_LOAD_DATE 	AS "SOURCE_LOAD_DATE",
           /* 20230605 - KBY, Hypercare Ref #117 - include SOURCE_TYPE */
@@ -39,7 +38,9 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."SOLI" AS
          
            
     FROM "SOLI_CTE" soli
-    LEFT JOIN "DEV"."BUSINESS_OPERATIONS"."DIM_FULFILLMENT_CALENDAR" cal
+    /* 202307126 - KBY, RFS23-2033 - Adjust FREDD calculation to account for shorter turnaround at 3PLs,  use variable span over business days */
+    LEFT JOIN "DEV"."BUSINESS_OPERATIONS"."DIM_CALENDAR_BUSINESS_DAYS_SPAN" cal
       ON cal."RAW_DATE" = soli."AVAIL_DATE"
+        AND cal."BIZDAYS" = soli."FR_PREV_DAYS"
 
     ORDER BY "ORDER_NUMBER", "ITEM", "UNIQUE_KEY";

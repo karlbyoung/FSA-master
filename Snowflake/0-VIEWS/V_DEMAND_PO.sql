@@ -29,7 +29,9 @@ create or replace view V_DEMAND_PO(
 	SALES_ORDER_TYPE,
     /* 20230711 - KBY, RFS23-1850 - Include inventories for all FSA locations, and for forward-facing locations only */
     TOTAL_AVAIL_QTY_FWD,
-    TOTAL_AVAIL_QTY_NONFWD
+    TOTAL_AVAIL_QTY_NONFWD,
+    /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
+    FR_PREV_DAYS
 ) as (
 SELECT 
   "ORDER_NUMBER", 
@@ -62,7 +64,9 @@ SELECT
   "SALES_ORDER_TYPE",
     /* 20230711 - KBY, RFS23-1850 - Include inventories for all FSA locations, and for forward-facing locations only */
   "TOTAL_AVAIL_QTY_FWD",
-  "TOTAL_AVAIL_QTY_NONFWD"
+  "TOTAL_AVAIL_QTY_NONFWD",
+  /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
+  "FR_PREV_DAYS"
 FROM (------ 1. TRANSFER ORDER ------
 
 WITH CTE_XFER AS (
@@ -430,6 +434,22 @@ UNION
         , A.NS_LINE_NUMBER
         , A.CREATE_DATE
 ) 
+/* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
+, CTE_SOURCES_ASSIGN_PO_FR AS
+(
+    SELECT *,
+        CUSTBODY_FRPRDAYS AS FR_PREV_DAYS
+      FROM CTE_SOURCES_ASSIGN_PO
+      JOIN (
+        SELECT CUSTBODY_FRPRDAYS,count(*) NUM
+            FROM DEV.NETSUITE2_RAW_RESTRICT.TRANSACTION
+            WHERE CUSTBODY_FRPRDAYS IS NOT NULL
+            GROUP BY CUSTBODY_FRPRDAYS
+            ORDER BY NUM DESC
+            LIMIT 1
+      )
+
+)
 
  ------------------------------------------------------------------------------------------------------------------------------------------------
  -- results --
@@ -446,7 +466,8 @@ UNION
             END                                                             AS BO_STATUS
          , DI.TYPE_NAME                                                     AS TYPE_NAME
          , CAST(C.MASTERQTY AS varchar)                                     AS NUMBER_IN_CARTON
-    FROM CTE_SOURCES_ASSIGN_PO A
+    /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
+    FROM CTE_SOURCES_ASSIGN_PO_FR A
     LEFT OUTER JOIN DEV.NETSUITE2.DIM_ITEM DI 
         ON A.ITEM_ID = DI.ITEM_ID
     /* 20230711 - KBY, RFS23-1850 - Include inventories for all FSA locations, and for forward-facing locations only */

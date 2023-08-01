@@ -65,13 +65,16 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQUENCING_PO_ASSIGN_TMP2 AS
        		  WHEN PO_INDICATOR_ASSIGN = '1'
                THEN IFF(a.AVAIL_DATE < :cur_run_date, :cur_run_date, AVAIL_DATE)
               WHEN PO_INDICATOR_ASSIGN = '0'
-               THEN IFF(AVAIL_DATE < :cur_run_date OR a.AVAIL_DATE IS NULL, today60."MIN_SUB_15", AVAIL_DATE)
+               THEN IFF(AVAIL_DATE < :cur_run_date OR a.AVAIL_DATE IS NULL, before_today60.LAND_DATE, AVAIL_DATE)
               ELSE NULL
               END AS "AVAIL_DATE"
        ,IFF(a.IS_ASSEMBLY_COMPONENT, a.ORDER_NUMBER, a.PO_ORDER_NUMBER) AS "SHARED_ORDER_NUMBER"
   FROM DEV.${FSA_PROD_SCHEMA}.SEQUENCING_PO_ASSIGN_TMP1 a
   -- TODAY + 60 DAYS
-  LEFT JOIN "DEV"."BUSINESS_OPERATIONS"."DIM_FULFILLMENT_CALENDAR" today60 ON today60."RAW_DATE" = DATEADD('day', 60, :cur_run_date)
+  /* 202307126 - KBY, RFS23-2033 - Adjust FREDD calculation to account for shorter turnaround at 3PLs,  use global parameter FR_PREV_DAYS to back off business days */
+  LEFT JOIN "DEV"."BUSINESS_OPERATIONS"."DIM_CALENDAR_BUSINESS_DAYS_SPAN" before_today60 
+    ON before_today60.RAW_DATE = DATEADD('day', 60, :cur_run_date)
+      AND before_today60.BIZDAYS = -a.FR_PREV_DAYS
 /* AC 6/7 */
   -- TODAY
   LEFT JOIN "DEV"."BUSINESS_OPERATIONS"."DIM_FULFILLMENT_CALENDAR" today ON today."RAW_DATE" = :cur_run_date;
@@ -122,6 +125,8 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQUENCING_PO_ASSIGN AS
          ,a.PO_INDICATOR_ASSIGN
          ,FLOOR(a.PO_TOTAL_QUANTITY_TO_BE_RECEIVED,0) AS PO_TOTAL_QUANTITY_TO_BE_RECEIVED
          ,a.SHARED_ORDER_NUMBER
+         /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
+         ,a.FR_PREV_DAYS
       	 ,CASE 
          
            /* 20230607 - AC - REVIEW AND DELETE ON 6/08 */
@@ -143,6 +148,9 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQUENCING_PO_ASSIGN AS
            -- added 2023-05-30, KBY
            --   if PO is assigned and has quantity, and previous AVAIL date is in the future, then set AVAIL date to today (i.e. what is in a.AVAIL_DATE)
            WHEN a.PO_INDICATOR IN (0,1) AND a.PO_INDICATOR_ASSIGN = 1 AND prev.PREV_AVAIL_DATE > :cur_run_date
+            THEN a.AVAIL_DATE
+           /* 20230728 - KBY, RSF23-2033 - Check global parameter FR_PREV_DAYS to see if it has changed */
+           WHEN a.FR_PREV_DAYS != prev.FR_PREV_DAYS 
             THEN a.AVAIL_DATE
            ELSE prev.PREV_AVAIL_DATE
           END AS "AVAIL_DATE"

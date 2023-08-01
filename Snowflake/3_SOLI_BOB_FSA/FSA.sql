@@ -42,8 +42,8 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.FSA AS
         ,prev.PREV_CAPPING_DDA                        AS "PREV_CAPPING_DDA"
         ,prev.PO_INDICATOR                            AS "PREV_PO_INDICATOR"
         ,prev.PO_INDICATOR_ASSIGN                     AS "PREV_PO_INDICATOR_ASSIGN"
-        ,prev.PO_ORDER_NUMBER						  AS "PREV_PO_ORDER_NUMBER"
-        ,prev.PO_RECEIVE_BY_DATE					  AS "PREV_PO_RECEIVE_BY_DATE"
+        ,prev.PO_ORDER_NUMBER                         AS "PREV_PO_ORDER_NUMBER"
+        ,prev.PO_RECEIVE_BY_DATE                      AS "PREV_PO_RECEIVE_BY_DATE"
   FROM DEV.${FSA_PROD_SCHEMA}.SEQUENCING_PO_ASSIGN SPA
   INNER JOIN DEV.${FSA_PROD_SCHEMA}.BOB bob
     ON SPA.ID = bob.FK_SPA_ID
