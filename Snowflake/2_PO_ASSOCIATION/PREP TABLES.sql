@@ -9,7 +9,7 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."UNASSIGNED_DEMAND" AS
 	ORDER BY ITEM_ID, ROW_NO;
     
 CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.ASSIGNED_DEMAND AS
-    SELECT NULL                        AS "PO_ID",
+    SELECT NULL::NUMBER                                                    AS "PO_ID",
            *
           /* 20230608 - KBY, HyperCare 123 - When OpenSO is already assigned (has valid Location), set PO_INDICATOR to 1 as indication */
           , IFF(IS_ALREADY_ASSIGNED,1,SIGN(REMAINING_QTY_ON_HAND))         AS "PO_INDICATOR"
