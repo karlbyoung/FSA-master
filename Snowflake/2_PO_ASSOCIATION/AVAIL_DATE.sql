@@ -149,8 +149,9 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQUENCING_PO_ASSIGN AS
            --   if PO is assigned and has quantity, and previous AVAIL date is in the future, then set AVAIL date to today (i.e. what is in a.AVAIL_DATE)
            WHEN a.PO_INDICATOR IN (0,1) AND a.PO_INDICATOR_ASSIGN = 1 AND prev.PREV_AVAIL_DATE > :cur_run_date
             THEN a.AVAIL_DATE
-           /* 20230728 - KBY, RSF23-2033 - Check global parameter FR_PREV_DAYS to see if it has changed */
-           WHEN a.FR_PREV_DAYS != prev.FR_PREV_DAYS 
+           /* 20230728 - KBY, RSF23-2033 - Check global parameter FR_PREV_DAYS to see if it has changed
+              -- except in the case where the OpenSO has a valid location assigned */
+           WHEN a.FR_PREV_DAYS != prev.FR_PREV_DAYS and not IS_ALREADY_ASSIGNED
             THEN a.AVAIL_DATE
            ELSE prev.PREV_AVAIL_DATE
           END AS "AVAIL_DATE"
