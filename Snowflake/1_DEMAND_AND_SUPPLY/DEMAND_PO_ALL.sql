@@ -18,13 +18,15 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.DEMAND_PO_ALL AS
       AND ORDER_NUMBER NOT IN ('26817','25981','26501') -- PROD ONLY
       AND NOT (SOURCETYPE = 'Assembly' AND COMPONENT_ITEM IS NULL)
       AND TYPE_NAME <> 'Kit/Package'
-      ORDER BY TRANSACTION_TYPE, DDA, UNIQUE_KEY
+      /* 20230804 - KBY, RSF23-1861 - Convert ID's from FLOAT to NUMBER */
+      ORDER BY TRANSACTION_TYPE, DDA, UNIQUE_KEY::NUMBER
   )
 
   ,"CTE_DEMAND_PO" AS (
     SELECT  PRI.ID                   AS "FK_ID"
            ,DPO.ORDER_NUMBER         AS "ORDER_NUMBER" 
-           ,UNIQUE_KEY               AS "UNIQUE_KEY"
+          /* 20230804 - KBY, RSF23-1861 - Convert ID's from FLOAT to NUMBER */
+           ,UNIQUE_KEY::NUMBER       AS "UNIQUE_KEY"
             ,IFF(SOURCETYPE = 'OpenSO', IFF(ESTIMATED_DELIVERY_DATE IS NULL, CAL.MIN_ADD_15, ESTIMATED_DELIVERY_DATE::DATE), DDA) AS "DDA"
            -- ,DDA                      AS "DDA"
            ,IFF(UPPER("TRANSACTION_TYPE") = 'ASSEMBLY',
@@ -37,15 +39,16 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.DEMAND_PO_ALL AS
            ,IFF(PRI.ID IS NULL, 4, PRIORITY_LEVEL) AS "PRIORITY_LEVEL"
            ,NS_LINE_NUMBER           AS "NS_LINE_NUMBER"                              
            ,ITEM                     AS "ITEM"                                          
-           ,ITEM_ID                  AS "ITEM_ID"                                  
+          /* 20230804 - KBY, RSF23-1861 - Convert ID's from FLOAT to NUMBER */
+           ,ITEM_ID::NUMBER          AS "ITEM_ID"                                  
            ,COMPONENT_ITEM_ID        AS "COMPONENT_ITEM_ID"             
            ,COMPONENT_ITEM           AS "COMPONENT_ITEM"          
-           ,QTY_ORDERED              AS "QTY_ORDERED"       
-           ,TOTAL_AVAIL_QTY          AS "TOTAL_AVAIL_QTY"           
+           ,FLOOR(QTY_ORDERED)::NUMBER             AS "QTY_ORDERED"       
+           ,FLOOR(TOTAL_AVAIL_QTY)::NUMBER         AS "TOTAL_AVAIL_QTY"           
           /* 20230711 - KBY, RFS23-1850 - Include inventories for FSA forward-facing-only locations also */
-           ,TOTAL_AVAIL_QTY_FWD      AS "TOTAL_AVAIL_QTY_FWD"
-           ,TOTAL_AVAIL_QTY_NONFWD   AS "TOTAL_AVAIL_QTY_NONFWD"
-           ,COMPONENT_QTY_ORDERED    AS "COMPONENT_QTY_ORDERED"                 
+           ,FLOOR(TOTAL_AVAIL_QTY_FWD)::NUMBER     AS "TOTAL_AVAIL_QTY_FWD"
+           ,FLOOR(TOTAL_AVAIL_QTY_NONFWD)::NUMBER  AS "TOTAL_AVAIL_QTY_NONFWD"
+           ,FLOOR(COMPONENT_QTY_ORDERED)::NUMBER   AS "COMPONENT_QTY_ORDERED"                 
            ,LOCATION                 AS "LOCATION"    
            ,SOURCETYPE               AS "SOURCETYPE"      
          ,TRANSACTION_ID           AS "TRANSACTION_ID"          
@@ -87,7 +90,7 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.DEMAND_PO_ALL AS
             ,d.ITEM_ID                      AS "ITEM_ID"
             ,d.COMPONENT_ITEM_ID            AS "COMPONENT_ITEM_ID"
             ,NULLIF(d.COMPONENT_ITEM, '')   AS "COMPONENT_ITEM" --,IFF(d.COMPONENT_ITEM = '', NULL, d.COMPONENT_ITEM) AS "COMPONENT_ITEM"
-            ,d.QTY_ORDERED                  AS "QUANTITY"
+            ,FLOOR(d.QTY_ORDERED)::NUMBER   AS "QUANTITY"
             ,d.TOTAL_AVAIL_QTY              AS "TOTAL_AVAIL_QTY"
           /* 20230711 - KBY, RFS23-1850 - Include inventories for FSA forward-facing-only locations also */
             ,d.TOTAL_AVAIL_QTY_FWD          AS "TOTAL_AVAIL_QTY_FWD"

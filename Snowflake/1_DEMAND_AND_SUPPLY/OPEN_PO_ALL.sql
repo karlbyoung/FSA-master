@@ -2,26 +2,31 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."OPEN_PO_ALL" AS (
   WITH OPEN_PO_NO_HASH AS (
     SELECT DENSE_RANK() OVER (PARTITION BY "ITEM_ID_C" 
                               ORDER BY "ITEM_ID_C", "RECEIVE_BY_DATE"::DATE ASC, "ORDER_NUMBER" ASC) AS "PO_ROW_NO"
-    	 , IFF("ASSEMBLY_ITEM_ID" IS NOT NULL, "ASSEMBLY_ITEM_ID", "ITEM_ID")  AS "PO_ITEM_ID"
-         , IFF("ASSEMBLY_ITEM_ID" IS NOT NULL, 'ASSEMBLY', 'No Assembly')      AS "PO_ITEM_TYPE"
-    	 , "ITEM_ID"
+      /* 20230804 - KBY, RSF23-1861 - Convert ID's from FLOAT to NUMBER */
+    	 , IFF("ASSEMBLY_ITEM_ID" IS NOT NULL, "ASSEMBLY_ITEM_ID", "ITEM_ID")::NUMBER   AS "PO_ITEM_ID"
+         , IFF("ASSEMBLY_ITEM_ID" IS NOT NULL, 'ASSEMBLY', 'No Assembly')             AS "PO_ITEM_TYPE"
+      /* 20230804 - KBY, RSF23-1861 - Convert ID's from FLOAT to NUMBER */
+    	 , "ITEM_ID"::NUMBER                                                            AS "ITEM_ID"
          , "ITEM"   
     	 , "ITEM_ID_C"
     	 , "ITEM_C"
          , "ITEM_DISPLAY_NAME"  
-         , "ASSEMBLY_ITEM_ID"
+        /* 20230804 - KBY, RSF23-1861 - Convert ID's from FLOAT to NUMBER */
+         , "ASSEMBLY_ITEM_ID"::NUMBER                                                 AS "ASSEMBLY_ITEM_ID"
          , "ASSEMBLY_ITEM"   
          , "ASSEMBLY_ITEM_DISPLAY_NAME"       
          , "ORDER_NUMBER"       
-         , "PURCHASE_ORDER_TRANSACTION_ID"     
+        /* 20230804 - KBY, RSF23-1861 - Convert ID's from FLOAT to NUMBER */
+         , "PURCHASE_ORDER_TRANSACTION_ID"::NUMBER                                    AS "PURCHASE_ORDER_TRANSACTION_ID"
          , "STATUS"   				  AS "STATUS"
          , "LOCATION" 				  AS "LOCATION"
          , IFF("RECEIVE_BY_DATE"::DATE < CURRENT_DATE()
              , CAL."MIN_ADD_5"
              , "RECEIVE_BY_DATE")     AS "RECEIVE_BY_DATE"
          , "RECEIVE_BY_DATE"          AS "NS_RECEIVE_BY_DATE"
-         , "UNIQUE_KEY" 			  AS "UNIQUE_KEY"
-         , "QUANITITY_TO_BE_RECEIVED" AS "QUANTITY_TO_BE_RECEIVED"
+        /* 20230804 - KBY, RSF23-1861 - Convert ID's from FLOAT to NUMBER */
+         , "UNIQUE_KEY"::NUMBER       AS "UNIQUE_KEY"
+         , FLOOR("QUANITITY_TO_BE_RECEIVED")::NUMBER AS "QUANTITY_TO_BE_RECEIVED"
     FROM "DEV".${FSA_PROD_SCHEMA}."V_OPENPO" 
     LEFT JOIN "DEV"."BUSINESS_OPERATIONS"."DIM_FULFILLMENT_CALENDAR" CAL
            ON CAL.RAW_DATE = CURRENT_DATE()
