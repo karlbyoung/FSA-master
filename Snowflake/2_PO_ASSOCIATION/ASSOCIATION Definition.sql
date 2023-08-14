@@ -22,10 +22,13 @@ var x = snowflake.execute({sqlText: `SELECT MAX(PO_ID)
 x.next();
 MAX_PO_ID = x.getColumnValue(1);
 
+/* 20230809 - KBY, RFS23-1869 - Assignment code improvement  */
+/*    initial assignment for DEMAND_ASSIGNMENT_TRACKED creates table, subsequent assignments use INSERT OVERWRITE */
+var insertOrCreateQuery = `CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."DEMAND_ASSIGNMENT_TRACKED" AS `;
 while (PO_ID <= MAX_PO_ID) {
     
-    var foo_sql = `CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."DEMAND_ASSIGNMENT_TRACKED" AS
-                    WITH CTE_PO_ASSIGN AS 
+    var foo_sql = insertOrCreateQuery + 
+                    `WITH CTE_PO_ASSIGN AS 
                       (SELECT DISTINCT
                           SO.PO_ID
                           ,SO.FSA_LOAD_STATUS::TEXT AS "FSA_LOAD_STATUS"
@@ -101,7 +104,12 @@ while (PO_ID <= MAX_PO_ID) {
 
     snowflake.execute({sqlText: foo_sql})
 
-    var open_po_sql = `CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.OPEN_PO_TRACKED AS
+    /* 20230809 - KBY, RFS23-1869 - Assignment code improvement  */
+    /*    initial assignment for DEMAND_ASSIGNMENT_TRACKED creates table, subsequent assignments use INSERT OVERWRITE */
+    insertOrCreateQuery = `INSERT OVERWRITE INTO DEV.${FSA_PROD_SCHEMA}."DEMAND_ASSIGNMENT_TRACKED" `;
+
+    /* 20230809 - KBY, RFS23-1869 - Assignment code improvement, use INSERT OVERWRITE instead of creating new table  */
+    var open_po_sql = `INSERT OVERWRITE INTO DEV.${FSA_PROD_SCHEMA}.OPEN_PO_TRACKED
                        SELECT DISTINCT OP.PO_ITEM_ID
                        	             , OP.ITEM_ID
                                      , OP.ITEM_ID_C
@@ -121,12 +129,10 @@ while (PO_ID <= MAX_PO_ID) {
     snowflake.execute({sqlText: open_po_sql})
 
     
-    var good_demand_sql = `CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.ASSIGNED_DEMAND AS
-                           SELECT *
-                           FROM (SELECT * FROM DEV.${FSA_PROD_SCHEMA}.ASSIGNED_DEMAND
-                                 UNION
-                                 SELECT * FROM DEV.${FSA_PROD_SCHEMA}.DEMAND_ASSIGNMENT_TRACKED)
-                           ORDER BY ITEM_ID, ROW_NO`;
+    /* 20230809 - KBY, RFS23-1869 - Assignment code improvement, use INSERT instead of creating new table  */
+    var good_demand_sql = `INSERT INTO DEV.${FSA_PROD_SCHEMA}.ASSIGNED_DEMAND
+                        SELECT * 
+                        FROM DEV.${FSA_PROD_SCHEMA}.DEMAND_ASSIGNMENT_TRACKED`;
 
     snowflake.execute({sqlText: good_demand_sql});
 
