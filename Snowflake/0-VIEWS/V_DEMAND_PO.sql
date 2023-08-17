@@ -200,6 +200,8 @@ WITH CTE_XFER AS (
         AND i_component.TYPE_NAME != 'Non-inventory Item'
     WHERE POLIA._POLI_IS_RECEIVED = 'FALSE' --line is open
         AND POLIA.PO_PRODUCT_LINE NOT IN ('General', 'Other')
+       /* 20230816 - KBY, RFS23-2441 Exclude PO marked as closed */
+        AND poli.IS_CLOSED = 'F'
 )
     
 ---------  Inventory   
