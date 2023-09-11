@@ -101,6 +101,8 @@ WHERE polia._POLI_IS_RECEIVED = 'FALSE'
        and po.order_number  not like  ('Planning%') --10/27/2022
        and po.status not in ('Closed','Fully Billed') //2023.04.04:JB:added this condition for RFS23-1190
        and ftl.CLASS_NAME not in ('General','Other')
+       /* 20230816 - KBY, RFS23-2441 Exclude PO marked as closed */
+       and poli.IS_CLOSED = 'F'
 ORDER BY item_Id, polia.RECEIVE_BY_DATE
 
 ) AS "v_0000003085_0015756644");
