@@ -135,9 +135,10 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQUENCING_PO_ASSIGN AS
        		--THEN a.AVAIL_DATE
            /* ---- */ 
            
-           WHEN NULLIF(a.PO_ORDER_NUMBER,'0') != NULLIF(prev.PO_ORDER_NUMBER,'0') 
+          /* 20230825 - KBY, RFS23-2625 - Compare potentially NULL values with IFNULL, not NULLIF */
+           WHEN IFNULL(a.PO_ORDER_NUMBER,'0') != IFNULL(prev.PO_ORDER_NUMBER,'0') 
             THEN a.AVAIL_DATE
-           WHEN NULLIF(a.PO_RECEIVE_BY_DATE,'2000-01-01'::DATE) != NULLIF(prev.PO_RECEIVE_BY_DATE,'2000-01-01'::DATE) 
+           WHEN IFNULL(a.PO_RECEIVE_BY_DATE,'2000-01-01'::DATE) != IFNULL(prev.PO_RECEIVE_BY_DATE,'2000-01-01'::DATE) 
             THEN a.AVAIL_DATE
            WHEN a.PO_INDICATOR != prev.PO_INDICATOR 
             THEN a.AVAIL_DATE
