@@ -22,7 +22,9 @@ create or replace view V_OPENPO(
 	QUANITITY_TO_BE_RECEIVED,
 	QUANITITY_TO_BE_RECEIVED_90,
 	ITEM_TYPE,
-	COMPONENT_TYPE
+	COMPONENT_TYPE,
+    /* 20230912 - KBY, RFS23-2653 - include Product Line column for Sample order info */
+    PO_PRODUCT_LINE
 ) as (SELECT 
   "ITEM_ID", 
   "ITEM", 
@@ -47,7 +49,9 @@ create or replace view V_OPENPO(
   "QUANITITY_TO_BE_RECEIVED", 
   "QUANITITY_TO_BE_RECEIVED_90",
   "ITEM_TYPE",
-  "COMPONENT_TYPE"
+  "COMPONENT_TYPE",
+    /* 20230912 - KBY, RFS3 - include Product Line column for Sample order info */
+  "PO_PRODUCT_LINE"
   
 FROM (
 SELECT  
@@ -76,6 +80,8 @@ SELECT
     ,(polia.QUANTITY*.9) as QUANITITY_TO_BE_RECEIVED_90
     ,i.TYPE_NAME AS "ITEM_TYPE"
     ,i_component.TYPE_NAME AS "COMPONENT_TYPE"
+    /* 20230912 - KBY, RFS3 - include Product Line column for Sample order info */
+    ,ftl.CLASS_NAME PO_PRODUCT_LINE
     
 FROM NETSUITE2_FSA.NS_PURCHASE_ORDER_LINE_ITEM_AUX polia 
    JOIN DEV.NETSUITE2.FACT_PURCHASE_ORDER_LINE_ITEM poli 
@@ -100,7 +106,8 @@ FROM NETSUITE2_FSA.NS_PURCHASE_ORDER_LINE_ITEM_AUX polia
 WHERE polia._POLI_IS_RECEIVED = 'FALSE'
        and po.order_number  not like  ('Planning%') --10/27/2022
        and po.status not in ('Closed','Fully Billed') //2023.04.04:JB:added this condition for RFS23-1190
-       and ftl.CLASS_NAME not in ('General','Other')
+       /* 20230912 - KBY, RFS23-2653 - allow Product Lines marked "General" or "Other" for Sample orders */
+--       and ftl.CLASS_NAME not in ('General','Other')
        /* 20230816 - KBY, RFS23-2441 Exclude PO marked as closed */
        and poli.IS_CLOSED = 'F'
 ORDER BY item_Id, polia.RECEIVE_BY_DATE

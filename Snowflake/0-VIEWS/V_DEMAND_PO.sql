@@ -30,6 +30,8 @@ create or replace view V_DEMAND_PO(
     /* 20230711 - KBY, RFS23-1850 - Include inventories for all FSA locations, and for forward-facing locations only */
     TOTAL_AVAIL_QTY_FWD,
     TOTAL_AVAIL_QTY_NONFWD,
+    /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
+    PO_PRODUCT_LINE,
     /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
     FR_PREV_DAYS
 ) as (
@@ -65,6 +67,8 @@ SELECT
     /* 20230711 - KBY, RFS23-1850 - Include inventories for all FSA locations, and for forward-facing locations only */
   "TOTAL_AVAIL_QTY_FWD",
   "TOTAL_AVAIL_QTY_NONFWD",
+  /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
+  "PO_PRODUCT_LINE",
   /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
   "FR_PREV_DAYS"
 FROM (------ 1. TRANSFER ORDER ------
@@ -185,6 +189,8 @@ WITH CTE_XFER AS (
         , POLI.NS_LINE_NUMBER 
         , PO.CREATE_DATE
         , PO.PURCHASE_ORDER_TRANSACTION_ID  -- 20230710 - KBY, Include Transaction ID's for Assembly as well
+        /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
+        , POLIA.PO_PRODUCT_LINE
     FROM DEV.NETSUITE2.FACT_PURCHASE_ORDER PO
     JOIN DEV.NETSUITE2_FSA.NS_PURCHASE_ORDER_LINE_ITEM_AUX POLIA
         ON PO.PURCHASE_ORDER_TRANSACTION_ID = POLIA.PURCHASE_ORDER_TRANSACTION_ID
@@ -199,7 +205,8 @@ WITH CTE_XFER AS (
         ON IC.COMPONENT_ITEM_ID = i_component.ITEM_ID
         AND i_component.TYPE_NAME != 'Non-inventory Item'
     WHERE POLIA._POLI_IS_RECEIVED = 'FALSE' --line is open
-        AND POLIA.PO_PRODUCT_LINE NOT IN ('General', 'Other')
+       /* 20230912 - KBY, RFS23-2653 - allow Product Lines marked "General" or "Other" for Sample orders */
+--        AND POLIA.PO_PRODUCT_LINE NOT IN ('General', 'Other')
        /* 20230816 - KBY, RFS23-2441 Exclude PO marked as closed */
         AND poli.IS_CLOSED = 'F'
 )
@@ -310,6 +317,8 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
         , A.CREATE_DATE
         , NULL AS ESTIMATED_DELIVERY_DATE
         , NULL AS SALES_ORDER_TYPE
+        /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
+        , NULL::TEXT PO_PRODUCT_LINE
     FROM CTE_XFER A
     GROUP BY A.ORDER_NUMBER
         , A.UNIQUE_KEY
@@ -322,6 +331,8 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
         , A.NS_LINE_NUMBER
         , A.TRANSACTION_ID
         , A.CREATE_DATE
+        /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
+        , PO_PRODUCT_LINE
 
 UNION
    
@@ -351,10 +362,14 @@ UNION
         , A.CREATE_DATE
         , A.ESTIMATED_DELIVERY_DATE
         , A.SALES_ORDER_TYPE
+        /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
+        , NULL::TEXT PO_PRODUCT_LINE
     FROM CTE_OPENSALES A
-    WHERE SO_TRANSACTION_TYPE_NEW != 'Sample (aka Internal fulfillment)' --   removing samples to get rid of sample demand 8/3/2022
+    WHERE 
+       /* 20230912 - KBY, RFS23-2652 - Allow Sample orders in to FSA */
+        -- SO_TRANSACTION_TYPE_NEW != 'Sample (aka Internal fulfillment)' --   OLD: removing samples to get rid of sample demand 8/3/2022
         --- AND A.SO_DEFERRED is null -- remove all deferred revenue items 
-        AND A.DEFERRED_REVENUE_BUCKETS IS NULL -- remove all deferred revenue items -- switch from so_deferred to DEFERRED_REVENUE_BUCKETS 8/3/2022
+        A.DEFERRED_REVENUE_BUCKETS IS NULL -- remove all deferred revenue items -- switch from so_deferred to DEFERRED_REVENUE_BUCKETS 8/3/2022
     GROUP BY A.SO_ORDER_NUMBER
         , A.SOLI_UNIQUE_KEY
         , A.SO_TRANSACTION_TYPE_NEW
@@ -377,6 +392,8 @@ UNION
         , A.CREATE_DATE
         , A.ESTIMATED_DELIVERY_DATE
         , A.SALES_ORDER_TYPE
+        /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
+        , PO_PRODUCT_LINE
       
 UNION
    
@@ -409,6 +426,8 @@ UNION
         , A.CREATE_DATE
         , NULL AS ESTIMATED_DELIVERY_DATE
         , NULL AS SALES_ORDER_TYPE
+        /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
+        , A.PO_PRODUCT_LINE
     FROM CTE_PO_DETAIL A 
     INNER JOIN DEV.NETSUITE2_FSA.V_OPENPO B
         ON A.ORDER_NUMBER = B.ORDER_NUMBER
@@ -435,6 +454,8 @@ UNION
         , B.LOCATION
         , A.NS_LINE_NUMBER
         , A.CREATE_DATE
+        /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
+        , A.PO_PRODUCT_LINE
 ) 
 /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
 , CTE_SOURCES_ASSIGN_PO_FR AS
