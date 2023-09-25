@@ -70,6 +70,8 @@ while (PO_ID <= MAX_PO_ID) {
                           ,SO.IS_PARTIAL_QTY
                           /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
                           ,SO.FR_PREV_DAYS
+                          /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
+                          ,SO.FSA_COMPLETE
                           ,SO.PO_INDICATOR
                           ,` + CUR_RUN_DATE + ` AS "PO_UPDATE_DATETIME"
                           /* 20230717 - KBY, RFS23-1850 - Select PO's for forward-facing-only locations only and all locations (including non-forward-facing) */

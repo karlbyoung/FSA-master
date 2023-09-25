@@ -27,6 +27,8 @@ create or replace view V_DEMAND_PO(
 	TRANSACTION_CREATE_DATE,
 	ESTIMATED_DELIVERY_DATE,
 	SALES_ORDER_TYPE,
+    /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
+    FSA_COMPLETE,
     /* 20230711 - KBY, RFS23-1850 - Include inventories for all FSA locations, and for forward-facing locations only */
     TOTAL_AVAIL_QTY_FWD,
     TOTAL_AVAIL_QTY_NONFWD,
@@ -62,6 +64,8 @@ SELECT
   "CREATE_DATE",
   "ESTIMATED_DELIVERY_DATE",
   "SALES_ORDER_TYPE",
+    /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
+  "FSA_COMPLETE",
     /* 20230711 - KBY, RFS23-1850 - Include inventories for all FSA locations, and for forward-facing locations only */
   "TOTAL_AVAIL_QTY_FWD",
   "TOTAL_AVAIL_QTY_NONFWD",
@@ -136,6 +140,8 @@ WITH CTE_XFER AS (
         , B.CREATE_DATE
         , FSOLI.ESTIMATED_DELIVERY_DATE
         , B.SALES_ORDER_TYPE
+       /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
+        , FFSO.FSA_COMPLETE
     FROM DEV.NETSUITE2_FSA.NS_SALES_ORDER_LINE_ITEM A
     JOIN DEV.NETSUITE2.FACT_SO_LINE_ITEM FSOLI
         ON A.SOLI_UNIQUE_KEY = FSOLI.UNIQUE_KEY
@@ -151,6 +157,9 @@ WITH CTE_XFER AS (
         GROUP BY sales_order_transaction_id
         ) C
         ON B.SALES_ORDER_TRANSACTION_ID = C.SALES_ORDER_TRANSACTION_ID       
+    /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
+    LEFT OUTER JOIN DEV.NETSUITE2.FACT_FULFILLMENT_SALES_ORDER FFSO
+        ON A.SO_TRANSACTION_ID = FFSO.FULFILLMENT_SALES_ORDER_TRANSACTION_ID
      WHERE  
         (A.SOLI_LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
                                'LSC Owensville','LSC Airwest','LSC Linn',
@@ -165,6 +174,7 @@ WITH CTE_XFER AS (
         AND (A.IFF_REF_NO IS NULL AND FSOLI.FULFILLMENT_REQUEST_NO IS NULL)--exclude lines that are already associated with an IFF
         and a.SOLI_ITEM_TYPE != 'Non-inventory Item' //2023.04.04:JB:added this condition for RFS23-1177  
         and coalesce(b.SSR_INITIATIVE,'--') != 'Priority Order' //2023.04.04:JB:added this condition for RFS23-1175 
+
 ) 
    
 ------ 3.  PO/ Assembly   ---------
@@ -310,6 +320,8 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
         , A.CREATE_DATE
         , NULL AS ESTIMATED_DELIVERY_DATE
         , NULL AS SALES_ORDER_TYPE
+       /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
+        , NULL FSA_COMPLETE
     FROM CTE_XFER A
     GROUP BY A.ORDER_NUMBER
         , A.UNIQUE_KEY
@@ -351,6 +363,8 @@ UNION
         , A.CREATE_DATE
         , A.ESTIMATED_DELIVERY_DATE
         , A.SALES_ORDER_TYPE
+       /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
+        , A.FSA_COMPLETE
     FROM CTE_OPENSALES A
     WHERE SO_TRANSACTION_TYPE_NEW != 'Sample (aka Internal fulfillment)' --   removing samples to get rid of sample demand 8/3/2022
         --- AND A.SO_DEFERRED is null -- remove all deferred revenue items 
@@ -377,6 +391,7 @@ UNION
         , A.CREATE_DATE
         , A.ESTIMATED_DELIVERY_DATE
         , A.SALES_ORDER_TYPE
+        , A.FSA_COMPLETE
       
 UNION
    
@@ -409,6 +424,8 @@ UNION
         , A.CREATE_DATE
         , NULL AS ESTIMATED_DELIVERY_DATE
         , NULL AS SALES_ORDER_TYPE
+       /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
+        , NULL AS FSA_COMPLETE
     FROM CTE_PO_DETAIL A 
     INNER JOIN DEV.NETSUITE2_FSA.V_OPENPO B
         ON A.ORDER_NUMBER = B.ORDER_NUMBER
