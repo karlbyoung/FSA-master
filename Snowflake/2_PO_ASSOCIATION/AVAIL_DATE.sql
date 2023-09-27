@@ -127,6 +127,8 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQUENCING_PO_ASSIGN AS
          ,a.SHARED_ORDER_NUMBER
          /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
          ,a.FR_PREV_DAYS
+         /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
+         ,FSA_COMPLETE
       	 ,CASE 
          
            /* 20230607 - AC - REVIEW AND DELETE ON 6/08 */

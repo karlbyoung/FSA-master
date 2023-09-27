@@ -52,6 +52,8 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQ_DEMAND_PO AS
             ,DENSE_RANK() OVER (ORDER BY ITEM_ID_BY_TRANSACTION_TYPE)                       AS "ITEM_ROW_NO"
             /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
             ,DPO.FR_PREV_DAYS
+            /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
+            ,DPO.FSA_COMPLETE
       FROM DEV.${FSA_PROD_SCHEMA}."DEMAND_PO" DPO
       LEFT OUTER JOIN DEV.${FSA_PROD_SCHEMA}."DEMAND_PRIORITY" PRI
       ON DPO.FK_ID = PRI.ID
@@ -104,6 +106,8 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQ_DEMAND_PO AS
             ,DENSE_RANK() OVER (ORDER BY ITEM_ID_BY_TRANSACTION_TYPE)                     AS "ITEM_ROW_NO"
             /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
             ,DPO.FR_PREV_DAYS
+            /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
+            ,DPO.FSA_COMPLETE
       FROM DEV.${FSA_PROD_SCHEMA}."DEMAND_PO" DPO
       LEFT OUTER JOIN DEV.${FSA_PROD_SCHEMA}."DEMAND_PRIORITY" PRI
       ON DPO.FK_ID = PRI.ID
@@ -193,6 +197,8 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}.SEQ_DEMAND_PO AS
         , (AVAIL_QTY_USED > 0 AND QTY_ORDERED_ACCOUNTED != AVAIL_QTY_USED) IS_PARTIAL_QTY -- flag to indicate we only partly could fill SO from what was available
         /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
         ,FR_PREV_DAYS
+        /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
+        ,FSA_COMPLETE
         FROM CTE_ALL
     )
     SELECT
