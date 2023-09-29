@@ -1,59 +1,3 @@
-create or replace view V_OPENPO(
-	ITEM_ID,
-	ITEM,
-	BILL_OF_MATERIALS_ID,
-	BOM_NAME,
-	ITEM_C,
-	ITEM_ID_C,
-	ITEM_DISPLAY_NAME,
-	TRANSACTION_TYPE,
-	ASSEMBLY_ELSE_ITEM_ID,
-	ASSEMBLY_ITEM_ID,
-	ASSEMBLY_ITEM,
-	ASSEMBLY_ITEM_DISPLAY_NAME,
-	ORDER_NUMBER,
-	PURCHASE_ORDER_TRANSACTION_ID,
-	STATUS,
-	LOCATION,
-	RECEIVE_BY_DATE,
-	UNIQUE_KEY,
-	QUANTITY,
-	QUANTITY_RECEIVED,
-	QUANITITY_TO_BE_RECEIVED,
-	QUANITITY_TO_BE_RECEIVED_90,
-	ITEM_TYPE,
-	COMPONENT_TYPE,
-    /* 20230912 - KBY, RFS23-2653 - include Product Line column for Sample order info */
-    PO_PRODUCT_LINE
-) as (SELECT 
-  "ITEM_ID", 
-  "ITEM", 
-  "BILL_OF_MATERIALS_ID", 
-  "BOM_NAME", 
-  "ITEM_C", 
-  "ITEM_ID_C", 
-  "ITEM_DISPLAY_NAME", 
-  "TRANSACTION_TYPE", 
-  "ASSEMBLY_ELSE_ITEM_ID", 
-  "ASSEMBLY_ITEM_ID", 
-  "ASSEMBLY_ITEM", 
-  "ASSEMBLY_ITEM_DISPLAY_NAME", 
-  "ORDER_NUMBER", 
-  "PURCHASE_ORDER_TRANSACTION_ID", 
-  "STATUS", 
-  "LOCATION", 
-  "RECEIVE_BY_DATE", 
-  "UNIQUE_KEY", 
-  "QUANTITY", 
-  "QUANTITY_RECEIVED", 
-  "QUANITITY_TO_BE_RECEIVED", 
-  "QUANITITY_TO_BE_RECEIVED_90",
-  "ITEM_TYPE",
-  "COMPONENT_TYPE",
-    /* 20230912 - KBY, RFS3 - include Product Line column for Sample order info */
-  "PO_PRODUCT_LINE"
-  
-FROM (
 SELECT  
     i.item_id
     ,i.full_name as Item 
@@ -83,33 +27,31 @@ SELECT
     /* 20230912 - KBY, RFS3 - include Product Line column for Sample order info */
     ,ftl.CLASS_NAME PO_PRODUCT_LINE
     
-FROM NETSUITE2_FSA.NS_PURCHASE_ORDER_LINE_ITEM_AUX polia 
-   JOIN DEV.NETSUITE2.FACT_PURCHASE_ORDER_LINE_ITEM poli 
+FROM DEV.${vj_fsa_schema}.NS_PURCHASE_ORDER_LINE_ITEM_AUX polia 
+   JOIN DEV.${vj_ns2_schema}.FACT_PURCHASE_ORDER_LINE_ITEM poli 
        on polia.UNIQUE_KEY = poli.UNIQUE_KEY 
-   JOIN DEV.NETSUITE2.FACT_PURCHASE_ORDER po 
+   JOIN DEV.${vj_ns2_schema}.FACT_PURCHASE_ORDER po 
        on polia.PURCHASE_ORDER_TRANSACTION_ID = po.PURCHASE_ORDER_TRANSACTION_ID 
-   JOIN "DEV"."NETSUITE2"."DIM_ITEM" i 
+   JOIN "DEV"."${vj_ns2_schema}"."DIM_ITEM" i 
        on polia.ASSEMBLY_ELSE_ITEM_ID = i.ITEM_ID
-   JOIN "DEV"."NETSUITE2"."FACT_TRANSACTION_LINE" ftl -- Get the Main Line to get the Product Line (Class) of the PO
+   JOIN "DEV"."${vj_ns2_schema}"."FACT_TRANSACTION_LINE" ftl -- Get the Main Line to get the Product Line (Class) of the PO
        on po.PURCHASE_ORDER_TRANSACTION_ID = ftl.TRANSACTION_ID      
        and ftl.TRANSACTION_LINE_ID = 0    
-   LEFT JOIN DEV.NETSUITE2_FSA.NS_ITEMS_COMPONENTS ic
+   LEFT JOIN DEV.${vj_fsa_schema}.NS_ITEMS_COMPONENTS ic
         on polia.ASSEMBLY_ELSE_ITEM_ID = ic.ITEM_ID
         and ic.ITEM_TYPE = 'Assembly'
-   LEFT JOIN DEV.NETSUITE2.DIM_ITEM i_component
+   LEFT JOIN DEV.${vj_ns2_schema}.DIM_ITEM i_component
         on ic.COMPONENT_ITEM_ID = i_component.ITEM_ID
-        and i_component.type_name NOT IN ('Non-inventory Item', 'Non-inventory Item for Resale', 'Kit Part') // 2023.05.15 Alex: FSA
-   JOIN DEV.NETSUITE2_RAW_RESTRICT.LOCATION loc //join added for RFS23-1189. Restrict to certain locations.
+        and i_component.type_name NOT IN ('Non-inventory Item', 'Non-inventory Item for Resale', 'Kit Part') -- 2023.05.15 Alex: FSA
+   JOIN DEV.${vj_ns2_raw_schema}.LOCATION loc --join added for RFS23-1189. Restrict to certain locations.
         on po.LOCATION = loc.NAME
         and (CUSTRECORD_FSA_LOCATION_RELEVANT = 'T'
-             or loc.NAME IN ('Booksource', 'Continuum')) // 2023.05.18 Alex: FSA                             
+             or loc.NAME IN ('Booksource', 'Continuum')) -- 2023.05.18 Alex: FSA                             
 WHERE polia._POLI_IS_RECEIVED = 'FALSE'
        and po.order_number  not like  ('Planning%') --10/27/2022
-       and po.status not in ('Closed','Fully Billed') //2023.04.04:JB:added this condition for RFS23-1190
+       and po.status not in ('Closed','Fully Billed') --2023.04.04:JB:added this condition for RFS23-1190
        /* 20230912 - KBY, RFS23-2653 - allow Product Lines marked "General" or "Other" for Sample orders */
 --       and ftl.CLASS_NAME not in ('General','Other')
        /* 20230816 - KBY, RFS23-2441 Exclude PO marked as closed */
        and poli.IS_CLOSED = 'F'
 ORDER BY item_Id, polia.RECEIVE_BY_DATE
-
-) AS "v_0000003085_0015756644");

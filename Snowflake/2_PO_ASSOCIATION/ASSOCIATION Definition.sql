@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE DEV.${FSA_PROD_SCHEMA}.ASSIGN_PO()
+CREATE OR REPLACE PROCEDURE DEV.${vj_fsa_schema}.ASSIGN_PO()
 RETURNS STRING
 LANGUAGE JAVASCRIPT
 AS
@@ -9,7 +9,7 @@ $$
     var PO_ID = 1;      /* PO_ID COUNTER      */
     
 var crd = snowflake.execute({sqlText: `SELECT MAX(INSERT_DATE)::DATE::TEXT
-                                     FROM DEV.${FSA_PROD_SCHEMA}.DEMAND_PO;`});
+                                     FROM DEV.${vj_fsa_schema}.DEMAND_PO;`});
 crd.next();
 CUR_RUN_DATE = crd.getColumnValue(1);
 
@@ -18,13 +18,13 @@ CUR_RUN_DATE = `'` + CUR_RUN_DATE + `'`;
 
 
 var x = snowflake.execute({sqlText: `SELECT MAX(PO_ID)
-                                     FROM DEV.${FSA_PROD_SCHEMA}.UNASSIGNED_DEMAND;`});
+                                     FROM DEV.${vj_fsa_schema}.UNASSIGNED_DEMAND;`});
 x.next();
 MAX_PO_ID = x.getColumnValue(1);
 
 /* 20230809 - KBY, RFS23-1869 - Assignment code improvement  */
 /*    initial assignment for DEMAND_ASSIGNMENT_TRACKED creates table, subsequent assignments use INSERT OVERWRITE */
-var insertOrCreateQuery = `CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."DEMAND_ASSIGNMENT_TRACKED" AS `;
+var insertOrCreateQuery = `CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}."DEMAND_ASSIGNMENT_TRACKED" AS `;
 while (PO_ID <= MAX_PO_ID) {
     
     var foo_sql = insertOrCreateQuery + 
@@ -87,12 +87,12 @@ while (PO_ID <= MAX_PO_ID) {
                           ,("PO_QUANTITY_TO_BE_RECEIVED" - SO."QTY_ORDERED" + IFF(SO."IS_PARTIAL_QTY",SO."AVAIL_QTY_USED",0))  AS "PO_QUANTITY_REMAINING"
                           ,IFF(SO.IS_ASSEMBLY_COMPONENT,ALL_PO_RECEIVE_BY_DATE,FWD_PO_RECEIVE_BY_DATE)                         AS "PO_RECEIVE_BY_DATE"
                           ,IFF(SO.IS_ASSEMBLY_COMPONENT,OP.OG_QUANTITY_TO_BE_RECEIVED,OP_FWD.OG_QUANTITY_TO_BE_RECEIVED)       AS "OG_QUANTITY_TO_BE_RECEIVED"
-                      FROM DEV.${FSA_PROD_SCHEMA}."UNASSIGNED_DEMAND" SO
-                      LEFT OUTER JOIN DEV.${FSA_PROD_SCHEMA}."OPEN_PO_TRACKED" OP
+                      FROM DEV.${vj_fsa_schema}."UNASSIGNED_DEMAND" SO
+                      LEFT OUTER JOIN DEV.${vj_fsa_schema}."OPEN_PO_TRACKED" OP
                         ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" =  OP."ITEM_ID" 
                         AND SO."QTY_ORDERED"                 <= OP."QUANTITY_TO_BE_RECEIVED"
                         /* 20230717 - KBY, RFS23-1850 - Select PO's for forward-facing-only locations only  */
-                      LEFT OUTER JOIN DEV.${FSA_PROD_SCHEMA}."OPEN_PO_TRACKED" OP_FWD
+                      LEFT OUTER JOIN DEV.${vj_fsa_schema}."OPEN_PO_TRACKED" OP_FWD
                         ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" =  OP_FWD."ITEM_ID" 
                         AND SO."QTY_ORDERED"                 <= OP_FWD."QUANTITY_TO_BE_RECEIVED"
                         AND OP_FWD.IS_FWD_LOCATION                                                  -- TRUE only if a forward-facing location
@@ -108,10 +108,10 @@ while (PO_ID <= MAX_PO_ID) {
 
     /* 20230809 - KBY, RFS23-1869 - Assignment code improvement  */
     /*    initial assignment for DEMAND_ASSIGNMENT_TRACKED creates table, subsequent assignments use INSERT OVERWRITE */
-    insertOrCreateQuery = `INSERT OVERWRITE INTO DEV.${FSA_PROD_SCHEMA}."DEMAND_ASSIGNMENT_TRACKED" `;
+    insertOrCreateQuery = `INSERT OVERWRITE INTO DEV.${vj_fsa_schema}."DEMAND_ASSIGNMENT_TRACKED" `;
 
     /* 20230809 - KBY, RFS23-1869 - Assignment code improvement, use INSERT OVERWRITE instead of creating new table  */
-    var open_po_sql = `INSERT OVERWRITE INTO DEV.${FSA_PROD_SCHEMA}.OPEN_PO_TRACKED
+    var open_po_sql = `INSERT OVERWRITE INTO DEV.${vj_fsa_schema}.OPEN_PO_TRACKED
                        SELECT DISTINCT OP.PO_ITEM_ID
                        	             , OP.ITEM_ID
                                      , OP.ITEM_ID_C
@@ -122,8 +122,8 @@ while (PO_ID <= MAX_PO_ID) {
                                      , OP.NS_RECEIVE_BY_DATE
                                      , OP.PO_ROW_NO
                                      , OP.IS_FWD_LOCATION
-                       FROM DEV.${FSA_PROD_SCHEMA}."OPEN_PO_TRACKED" OP
-                       LEFT OUTER JOIN DEV.${FSA_PROD_SCHEMA}."DEMAND_ASSIGNMENT_TRACKED" SO
+                       FROM DEV.${vj_fsa_schema}."OPEN_PO_TRACKED" OP
+                       LEFT OUTER JOIN DEV.${vj_fsa_schema}."DEMAND_ASSIGNMENT_TRACKED" SO
                        	 ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" = OP."ITEM_ID" 
                          AND SO."PO_ORDER_NUMBER"             = OP."ORDER_NUMBER"
                          AND SO."PO_RECEIVE_BY_DATE"          = OP."NS_RECEIVE_BY_DATE"`;
@@ -132,9 +132,9 @@ while (PO_ID <= MAX_PO_ID) {
 
     
     /* 20230809 - KBY, RFS23-1869 - Assignment code improvement, use INSERT instead of creating new table  */
-    var good_demand_sql = `INSERT INTO DEV.${FSA_PROD_SCHEMA}.ASSIGNED_DEMAND
+    var good_demand_sql = `INSERT INTO DEV.${vj_fsa_schema}.ASSIGNED_DEMAND
                         SELECT * 
-                        FROM DEV.${FSA_PROD_SCHEMA}.DEMAND_ASSIGNMENT_TRACKED`;
+                        FROM DEV.${vj_fsa_schema}.DEMAND_ASSIGNMENT_TRACKED`;
 
     snowflake.execute({sqlText: good_demand_sql});
 

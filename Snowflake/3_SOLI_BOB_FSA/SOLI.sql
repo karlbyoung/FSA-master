@@ -1,10 +1,10 @@
-CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."SOLI" AS
+CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}."SOLI" AS
 
     WITH "CTE_MAX_AVAIL" AS (
         SELECT "ITEM_ID"
               ,"SHARED_ORDER_NUMBER"
               ,MAX(AVAIL_DATE) AS "MAX_AVAIL_DATE"
-        FROM DEV.${FSA_PROD_SCHEMA}."SEQUENCING_PO_ASSIGN" 
+        FROM DEV.${vj_fsa_schema}."SEQUENCING_PO_ASSIGN" 
         GROUP BY 1,2   
     )
     
@@ -13,7 +13,7 @@ CREATE OR REPLACE TABLE DEV.${FSA_PROD_SCHEMA}."SOLI" AS
               /* 20230607 - AC - Hypercare Ref #122 - Temp removal until data/logic resolved */
             --,IFF(seq."SHARED_ORDER_NUMBER" IS NULL, "AVAIL_DATE", mad."MAX_AVAIL_DATE") AS "AVAIL_DATE"
             ,"AVAIL_DATE"
-        FROM DEV.${FSA_PROD_SCHEMA}."SEQUENCING_PO_ASSIGN" seq
+        FROM DEV.${vj_fsa_schema}."SEQUENCING_PO_ASSIGN" seq
         LEFT JOIN "CTE_MAX_AVAIL" mad
           ON seq."ITEM_ID"             = mad."ITEM_ID"
          AND seq."SHARED_ORDER_NUMBER" = mad."SHARED_ORDER_NUMBER" 

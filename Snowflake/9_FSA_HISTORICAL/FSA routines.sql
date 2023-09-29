@@ -31,7 +31,7 @@
 --
 
 
-CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_FSA (MAX_DATE timestamp_ltz)
+CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.LATEST_FSA (MAX_DATE timestamp_ltz)
   RETURNS TABLE (
 	PO_ID NUMBER(23,5),
 	FSA_LOAD_STATUS VARCHAR(16777216),
@@ -109,23 +109,23 @@ CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_FSA (MAX_DATE timestamp
 	PREV_PO_ORDER_NUMBER VARCHAR(16777216),
 	PREV_PO_RECEIVE_BY_DATE DATE,
     /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
-    FSA_COMPLETE) AS
+    FSA_COMPLETE VARCHAR(16777216)) AS
 $$
     select t1.* exclude (fsa_insert_date,is_valid)
-      from dev.${FSA_PROD_SCHEMA}.fsa_historical t1
+      from dev.${vj_fsa_schema}.fsa_historical t1
       join (
         select distinct source_load_date,max(fsa_insert_date) over () fsa_insert_date
-        from dev.${FSA_PROD_SCHEMA}.fsa_historical
+        from dev.${vj_fsa_schema}.fsa_historical
         where is_valid 
           and source_load_date = 
           (select max(source_load_date) source_load_date
-            from dev.${FSA_PROD_SCHEMA}.fsa_historical
+            from dev.${vj_fsa_schema}.fsa_historical
             where is_valid and source_load_date <= MAX_DATE)) t2
       on t1.source_load_date = t2.source_load_date
         and t1.fsa_insert_date = t2.fsa_insert_date
 $$;
 
-CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_FSA ()
+CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.LATEST_FSA ()
   RETURNS TABLE (
 	PO_ID NUMBER(23,5),
 	FSA_LOAD_STATUS VARCHAR(16777216),
@@ -203,12 +203,12 @@ CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_FSA ()
 	PREV_PO_ORDER_NUMBER VARCHAR(16777216),
 	PREV_PO_RECEIVE_BY_DATE DATE,
     /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
-    FSA_COMPLETE) AS
+    FSA_COMPLETE VARCHAR(16777216)) AS
 $$
-	select * from TABLE(DEV.${FSA_PROD_SCHEMA}.LATEST_FSA(current_timestamp()))
+	select * from TABLE(DEV.${vj_fsa_schema}.LATEST_FSA(current_timestamp()))
 $$;
 
-CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_FSA (time_as_text text)
+CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.LATEST_FSA (time_as_text text)
   RETURNS TABLE (
 	PO_ID NUMBER(23,5),
 	FSA_LOAD_STATUS VARCHAR(16777216),
@@ -286,12 +286,12 @@ CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_FSA (time_as_text text)
 	PREV_PO_ORDER_NUMBER VARCHAR(16777216),
 	PREV_PO_RECEIVE_BY_DATE DATE,
     /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
-    FSA_COMPLETE) AS
+    FSA_COMPLETE VARCHAR(16777216)) AS
 $$
-	select * from TABLE(DEV.${FSA_PROD_SCHEMA}.LATEST_FSA(try_to_timestamp_ltz(time_as_text)))
+	select * from TABLE(DEV.${vj_fsa_schema}.LATEST_FSA(try_to_timestamp_ltz(time_as_text)))
 $$;
 
-CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_FSA_CONSOLIDATED (MAX_DATE timestamp_ltz)
+CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.LATEST_FSA_CONSOLIDATED (MAX_DATE timestamp_ltz)
   RETURNS TABLE (
 	ORDER_NUMBER VARCHAR(360),
 	NS_LINE_NUMBER TEXT,
@@ -315,12 +315,12 @@ $$
       ,ORIG_CAP_DDA       AS "ORIGINAL_CAPPING_DDA"
       ,MAX(FREDD)         AS "FREDD"
       ,MAX(CAPPING_DDA)   AS "CAPPING_DDA"
-	FROM TABLE(DEV.${FSA_PROD_SCHEMA}.LATEST_FSA(MAX_DATE))
+	FROM TABLE(DEV.${vj_fsa_schema}.LATEST_FSA(MAX_DATE))
 	WHERE SOURCE_TYPE = 'OpenSO'
 	GROUP BY 1,2,3,4,5,6,7,8
 $$;
 
-CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_FSA_CONSOLIDATED()
+CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.LATEST_FSA_CONSOLIDATED()
   RETURNS TABLE (
 	ORDER_NUMBER VARCHAR(360),
 	NS_LINE_NUMBER TEXT,
@@ -334,43 +334,43 @@ CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_FSA_CONSOLIDATED()
 	CAPPING_DDA DATE
 	) AS
 $$
-	SELECT * FROM TABLE(DEV.${FSA_PROD_SCHEMA}.LATEST_FSA_CONSOLIDATED(current_timestamp()))
+	SELECT * FROM TABLE(DEV.${vj_fsa_schema}.LATEST_FSA_CONSOLIDATED(current_timestamp()))
 $$;
 
-CREATE OR REPLACE PROCEDURE DEV.${FSA_PROD_SCHEMA}.MAKE_FSA(MAX_DATE timestamp_ltz,TARGET_TABLE text)
+CREATE OR REPLACE PROCEDURE DEV.${vj_fsa_schema}.MAKE_FSA(MAX_DATE timestamp_ltz,TARGET_TABLE text)
   RETURNS TABLE()
   LANGUAGE SQL
   EXECUTE AS CALLER
 AS $$
   BEGIN
-  LET rs RESULTSET := (CREATE OR REPLACE TABLE IDENTIFIER(:TARGET_TABLE) AS SELECT * FROM TABLE(DEV.${FSA_PROD_SCHEMA}.LATEST_FSA(:MAX_DATE)));
+  LET rs RESULTSET := (CREATE OR REPLACE TABLE IDENTIFIER(:TARGET_TABLE) AS SELECT * FROM TABLE(DEV.${vj_fsa_schema}.LATEST_FSA(:MAX_DATE)));
   return TABLE(rs);
   END;
 $$;
 
-CREATE OR REPLACE PROCEDURE DEV.${FSA_PROD_SCHEMA}.MAKE_FSA(MAX_DATE timestamp_ltz)
+CREATE OR REPLACE PROCEDURE DEV.${vj_fsa_schema}.MAKE_FSA(MAX_DATE timestamp_ltz)
   RETURNS TABLE()
   LANGUAGE SQL
   EXECUTE AS CALLER
 AS $$
   BEGIN
-  LET rs RESULTSET := (CALL DEV.${FSA_PROD_SCHEMA}.MAKE_FSA(:MAX_DATE,'DEV.${FSA_PROD_SCHEMA}.FSA'));
+  LET rs RESULTSET := (CALL DEV.${vj_fsa_schema}.MAKE_FSA(:MAX_DATE,'DEV.${vj_fsa_schema}.FSA'));
   return TABLE(rs);
   END;
 $$;
 
-CREATE OR REPLACE PROCEDURE DEV.${FSA_PROD_SCHEMA}.MAKE_FSA()
+CREATE OR REPLACE PROCEDURE DEV.${vj_fsa_schema}.MAKE_FSA()
   RETURNS TABLE()
   LANGUAGE SQL
   EXECUTE AS CALLER
 AS $$
   BEGIN
-  LET rs RESULTSET := (CALL DEV.${FSA_PROD_SCHEMA}.MAKE_FSA(current_timestamp()));
+  LET rs RESULTSET := (CALL DEV.${vj_fsa_schema}.MAKE_FSA(current_timestamp()));
   return TABLE(rs);
   END;
 $$;
 
-CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.DATES_FSA()
+CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.DATES_FSA()
   RETURNS TABLE(
     RECENT_OR_INORDER NUMBER,
     SOURCE_LOAD_DATE TIMESTAMP_LTZ,
@@ -382,21 +382,21 @@ $$
     select row_number() over (order by source_load_date,fsa_insert_date)-1 rep_order,
             source_load_date,
             max(fsa_insert_date) over (partition by source_load_date) fsa_insert_date
-        from DEV.${FSA_PROD_SCHEMA}.fsa_historical 
+        from DEV.${vj_fsa_schema}.fsa_historical 
         where is_valid 
         group by source_load_date,fsa_insert_date
     union
     select row_number() over (order by source_load_date desc,fsa_insert_date)*-1 rep_order,
             source_load_date,
             max(fsa_insert_date) over (partition by source_load_date) fsa_insert_date
-        from DEV.${FSA_PROD_SCHEMA}.fsa_historical 
+        from DEV.${vj_fsa_schema}.fsa_historical 
         where is_valid 
         group by source_load_date,fsa_insert_date
   )
   order by rep_order
 $$;
 
-CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_FSA (recent_or_inorder NUMBER)
+CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.LATEST_FSA (recent_or_inorder NUMBER)
   RETURNS TABLE (
 	PO_ID NUMBER(23,5),
 	FSA_LOAD_STATUS VARCHAR(16777216),
@@ -474,11 +474,11 @@ CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_FSA (recent_or_inorder 
 	PREV_PO_ORDER_NUMBER VARCHAR(16777216),
 	PREV_PO_RECEIVE_BY_DATE DATE,
     /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
-    FSA_COMPLETE) AS
+    FSA_COMPLETE VARCHAR(16777216)) AS
 $$
 	select f.* exclude (fsa_insert_date,is_valid)
-    from DEV.${FSA_PROD_SCHEMA}.FSA_HISTORICAL f
-    join table(DEV.${FSA_PROD_SCHEMA}.DATES_FSA()) d
+    from DEV.${vj_fsa_schema}.FSA_HISTORICAL f
+    join table(DEV.${vj_fsa_schema}.DATES_FSA()) d
     	on f.source_load_date = d.source_load_date
            and f.fsa_insert_date = d.fsa_insert_date
     where f.is_valid

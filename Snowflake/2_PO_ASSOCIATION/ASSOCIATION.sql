@@ -1,1 +1,1 @@
-CALL DEV.${FSA_PROD_SCHEMA}.ASSIGN_PO();
+CALL DEV.${vj_fsa_schema}.ASSIGN_PO();

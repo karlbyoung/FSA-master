@@ -1,81 +1,4 @@
-create or replace view V_DEMAND_PO(
-	ORDER_NUMBER,
-	UNIQUE_KEY,
-	DDA,
-	TRANSACTION_TYPE,
-	TOTAL_AMT,
-	ITEM,
-	ITEM_ID,
-	COMPONENT_ITEM_ID,
-	COMPONENT_ITEM,
-	QTY_ORDERED,
-	COMPONENT_QTY_ORDERED,
-	LOCATION,
-	PRIORITY_LEVEL,
-	SOURCETYPE,
-	NS_LINE_NUMBER,
-	ORG_DDA,
-	TRANSACTION_ID,
-	LINE_ID,
-	SO_MULTISITE_ORDER,
-	SO_MATERIAL_SUPPORT_STATUS,
-	SO_AMPLIFY_INTEGRATION_STATUS,
-	TOTAL_AVAIL_QTY,
-	BO_STATUS,
-	TYPE_NAME,
-	NUMBER_IN_CARTON,
-	TRANSACTION_CREATE_DATE,
-	ESTIMATED_DELIVERY_DATE,
-	SALES_ORDER_TYPE,
-    /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
-    FSA_COMPLETE,
-    /* 20230711 - KBY, RFS23-1850 - Include inventories for all FSA locations, and for forward-facing locations only */
-    TOTAL_AVAIL_QTY_FWD,
-    TOTAL_AVAIL_QTY_NONFWD,
-    /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
-    PO_PRODUCT_LINE,
-    /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
-    FR_PREV_DAYS
-) as (
-SELECT 
-  "ORDER_NUMBER", 
-  "UNIQUE_KEY", 
-  "DDA", 
-  "TRANSACTION_TYPE", 
-  "TOTAL_AMT", 
-  "ITEM", 
-  "ITEM_ID", 
-  "COMPONENT_ITEM_ID", 
-  "COMPONENT_ITEM", 
-  "QTY_ORDERED", 
-  "COMPONENT_QTY_ORDERED", 
-  "LOCATION", 
-  "PRIORITY_LEVEL", 
-  "SOURCETYPE", 
-  "NS_LINE_NUMBER", 
-  "ORG_DDA", 
-  "TRANSACTION_ID", 
-  "LINE_ID", 
-  "SO_MULTISITE_ORDER", 
-  "SO_MATERIAL_SUPPORT_STATUS", 
-  "SO_AMPLIFY_INTEGRATION_STATUS", 
-  "TOTAL_AVAIL_QTY", 
-  "BO_STATUS", 
-  "TYPE_NAME", 
-  "NUMBER_IN_CARTON",
-  "CREATE_DATE",
-  "ESTIMATED_DELIVERY_DATE",
-  "SALES_ORDER_TYPE",
-    /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
-  "FSA_COMPLETE",
-    /* 20230711 - KBY, RFS23-1850 - Include inventories for all FSA locations, and for forward-facing locations only */
-  "TOTAL_AVAIL_QTY_FWD",
-  "TOTAL_AVAIL_QTY_NONFWD",
-  /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
-  "PO_PRODUCT_LINE",
-  /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
-  "FR_PREV_DAYS"
-FROM (------ 1. TRANSFER ORDER ------
+------ 1. TRANSFER ORDER ------
 
 WITH CTE_XFER AS (
     SELECT ABS(TOLI.QUANTITY) AS Abs_QUANTITY
@@ -83,8 +6,8 @@ WITH CTE_XFER AS (
         , IFNULL(TOLI.QUANTITY_FULFILLED, 0) AS QUANTITY_FULFILLED                                   
         , TORD.* RENAME TRANSACTION_TYPE AS "HEADER_TRANSACTION_TYPE"
         , TOLI.*                       
-    FROM DEV.NETSUITE2.FACT_TRANSFER_ORDER_LINE_ITEM TOLI
-    JOIN DEV.NETSUITE2.FACT_TRANSFER_ORDER TORD
+    FROM DEV.${vj_ns2_schema}.FACT_TRANSFER_ORDER_LINE_ITEM TOLI
+    JOIN DEV.${vj_ns2_schema}.FACT_TRANSFER_ORDER TORD
         ON TOLI.TRANSFER_ORDER_TRANSACTION_ID = TORD.TRANSFER_ORDER_TRANSACTION_ID
         AND TORD.STATUS NOT IN ('Closed', 'Cancelled')
         AND LOWER(TORD.LOCATION_TO) LIKE '%depo%'
@@ -146,23 +69,23 @@ WITH CTE_XFER AS (
         , B.SALES_ORDER_TYPE
        /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
         , FFSO.FSA_COMPLETE
-    FROM DEV.NETSUITE2_FSA.NS_SALES_ORDER_LINE_ITEM A
-    JOIN DEV.NETSUITE2.FACT_SO_LINE_ITEM FSOLI
+    FROM DEV.${vj_fsa_schema}.NS_SALES_ORDER_LINE_ITEM A
+    JOIN DEV.${vj_ns2_schema}.FACT_SO_LINE_ITEM FSOLI
         ON A.SOLI_UNIQUE_KEY = FSOLI.UNIQUE_KEY
-    LEFT OUTER JOIN DEV.NETSUITE2_FSA.NS_ITEMS_AT_LOCATIONS D
+    LEFT OUTER JOIN DEV.${vj_fsa_schema}.NS_ITEMS_AT_LOCATIONS D
         ON A.SOLI_ITEM_ID = D.ITEM_ID  
         AND A.IFFLI_LOCATION = D.LOCATION
-    LEFT OUTER JOIN DEV.NETSUITE2.FACT_SALES_ORDER B
+    LEFT OUTER JOIN DEV.${vj_ns2_schema}.FACT_SALES_ORDER B
         ON A.SO_TRANSACTION_ID = B.SALES_ORDER_TRANSACTION_ID
     LEFT OUTER JOIN (
         SELECT SALES_ORDER_TRANSACTION_ID
             , SUM(AMOUNT) AS TOTAL 
-        FROM DEV.NETSUITE2.FACT_SO_LINE_ITEM 
+        FROM DEV.${vj_ns2_schema}.FACT_SO_LINE_ITEM 
         GROUP BY sales_order_transaction_id
         ) C
         ON B.SALES_ORDER_TRANSACTION_ID = C.SALES_ORDER_TRANSACTION_ID       
     /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
-    LEFT OUTER JOIN DEV.NETSUITE2.FACT_FULFILLMENT_SALES_ORDER FFSO
+    LEFT OUTER JOIN DEV.${vj_ns2_schema}.FACT_FULFILLMENT_SALES_ORDER FFSO
         ON A.SO_TRANSACTION_ID = FFSO.FULFILLMENT_SALES_ORDER_TRANSACTION_ID
      WHERE  
         (A.SOLI_LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
@@ -201,17 +124,17 @@ WITH CTE_XFER AS (
         , PO.PURCHASE_ORDER_TRANSACTION_ID  -- 20230710 - KBY, Include Transaction ID's for Assembly as well
         /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
         , POLIA.PO_PRODUCT_LINE
-    FROM DEV.NETSUITE2.FACT_PURCHASE_ORDER PO
-    JOIN DEV.NETSUITE2_FSA.NS_PURCHASE_ORDER_LINE_ITEM_AUX POLIA
+    FROM DEV.${vj_ns2_schema}.FACT_PURCHASE_ORDER PO
+    JOIN DEV.${vj_fsa_schema}.NS_PURCHASE_ORDER_LINE_ITEM_AUX POLIA
         ON PO.PURCHASE_ORDER_TRANSACTION_ID = POLIA.PURCHASE_ORDER_TRANSACTION_ID
-    JOIN DEV.NETSUITE2.FACT_PURCHASE_ORDER_LINE_ITEM POLI
+    JOIN DEV.${vj_ns2_schema}.FACT_PURCHASE_ORDER_LINE_ITEM POLI
         ON POLIA.UNIQUE_KEY = POLI.UNIQUE_KEY
-    JOIN DEV.NETSUITE2.DIM_ITEM i
+    JOIN DEV.${vj_ns2_schema}.DIM_ITEM i
         ON POLIA.ASSEMBLY_ELSE_ITEM_ID = i.ITEM_ID 
-    LEFT JOIN DEV.NETSUITE2_FSA.NS_ITEMS_COMPONENTS IC
+    LEFT JOIN DEV.${vj_fsa_schema}.NS_ITEMS_COMPONENTS IC
         ON POLIA.ASSEMBLY_ELSE_ITEM_ID = IC.ITEM_ID   --- 10/20/2022 with Joseph's help and updated on Tech Doc 
         AND IC.ITEM_TYPE = 'Assembly'
-    LEFT JOIN DEV.NETSUITE2.DIM_ITEM i_component
+    LEFT JOIN DEV.${vj_ns2_schema}.DIM_ITEM i_component
         ON IC.COMPONENT_ITEM_ID = i_component.ITEM_ID
         AND i_component.TYPE_NAME != 'Non-inventory Item'
     WHERE POLIA._POLI_IS_RECEIVED = 'FALSE' --line is open
@@ -224,7 +147,7 @@ WITH CTE_XFER AS (
 ---------  Inventory   
 , CTE_INVENTORY_FWD AS (    -- Forward facing inventory
 /*||JB.2023.03.29|
-Recommendation: Use Business Operations maintained DEV.NETSUITE2_FSA.NS_ITEMS_AT_LOCATIONS table instead of tables in NETSUITE2_RAW_RESTRICT schema
+Recommendation: Use Business Operations maintained DEV.${vj_fsa_schema}.NS_ITEMS_AT_LOCATIONS table instead of tables in NETSUITE2_RAW_RESTRICT schema
 =============
 |*/
 
@@ -232,8 +155,8 @@ Recommendation: Use Business Operations maintained DEV.NETSUITE2_FSA.NS_ITEMS_AT
         , I.NAME AS ITEM  
         , I.TYPE_NAME
         , SUM(NSIAL.QTY_AVAILABLE) AS TOTAL_AVAIL_QTY_FWD
-    FROM DEV.NETSUITE2_FSA.NS_ITEMS_AT_LOCATIONS NSIAL
-    JOIN DEV.NETSUITE2.DIM_ITEM I
+    FROM DEV.${vj_fsa_schema}.NS_ITEMS_AT_LOCATIONS NSIAL
+    JOIN DEV.${vj_ns2_schema}.DIM_ITEM I
         ON NSIAL.ITEM_ID = I.ITEM_ID
     WHERE 1=1
         AND NSIAL.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
@@ -249,7 +172,7 @@ Recommendation: Use Business Operations maintained DEV.NETSUITE2_FSA.NS_ITEMS_AT
 )
 , CTE_INVENTORY_NONFWD AS ( -- non-forward-facing inventory, i.e., assembly only
 /*||JB.2023.03.29|
-Recommendation: Use Business Operations maintained DEV.NETSUITE2_FSA.NS_ITEMS_AT_LOCATIONS table instead of tables in NETSUITE2_RAW_RESTRICT schema
+Recommendation: Use Business Operations maintained DEV.${vj_fsa_schema}.NS_ITEMS_AT_LOCATIONS table instead of tables in NETSUITE2_RAW_RESTRICT schema
 =============
 |*/
 
@@ -257,8 +180,8 @@ Recommendation: Use Business Operations maintained DEV.NETSUITE2_FSA.NS_ITEMS_AT
         , I.NAME AS ITEM  
         , I.TYPE_NAME
         , SUM(NSIAL.QTY_AVAILABLE) AS TOTAL_AVAIL_QTY_NONFWD
-    FROM DEV.NETSUITE2_FSA.NS_ITEMS_AT_LOCATIONS NSIAL
-    JOIN DEV.NETSUITE2.DIM_ITEM I
+    FROM DEV.${vj_fsa_schema}.NS_ITEMS_AT_LOCATIONS NSIAL
+    JOIN DEV.${vj_ns2_schema}.DIM_ITEM I
         ON NSIAL.ITEM_ID = I.ITEM_ID
     WHERE 1=1
         AND NSIAL.LOCATION IN ('Booksource', 'Continuum')
@@ -274,7 +197,7 @@ Recommendation: Use Business Operations maintained DEV.NETSUITE2_FSA.NS_ITEMS_AT
 -- need to qa for dups
 , CTE_CARTON AS (
  /*||JB.2023.03.29|
-I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks like it’s made up of some item configs provided by LSC, and some warehouse “throughput” configs. I’m not sure if the nature of that data is stable or dynamic. To the extent that any of these configs are stable attributes of the items, they potentially can get added AS attributes directly into NETSUITE2 (using either existing or new fields on Item records), and then reflected in DEV.NETSUITE2.DIM_ITEM
+I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks like it’s made up of some item configs provided by LSC, and some warehouse “throughput” configs. I’m not sure if the nature of that data is stable or dynamic. To the extent that any of these configs are stable attributes of the items, they potentially can get added AS attributes directly into NETSUITE2 (using either existing or new fields on Item records), and then reflected in DEV.${vj_ns2_schema}.DIM_ITEM
 =============
 |*/
     SELECT CAST(FULL_NAME AS varchar(50)) AS ITEM
@@ -293,7 +216,7 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
         , MSTR_WIDTH
         , MSTR_HEIGHT
         , LSC_L_W_H
-    FROM DEV.NETSUITE2_FSA.V_DIM_CARTONS_LOOSE
+    FROM DEV.${vj_fsa_schema}.V_DIM_CARTONS_LOOSE
 )   
     
  ------------------------------------------------------------------------------------------------------------------------------------------------
@@ -446,7 +369,7 @@ UNION
         /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
         , A.PO_PRODUCT_LINE
     FROM CTE_PO_DETAIL A 
-    INNER JOIN DEV.NETSUITE2_FSA.V_OPENPO B
+    INNER JOIN DEV.${vj_fsa_schema}.V_OPENPO B
         ON A.ORDER_NUMBER = B.ORDER_NUMBER
         AND A.ASSEMBLY_ELSE_ITEM_ID = B.ASSEMBLY_ELSE_ITEM_ID
     WHERE 
@@ -477,17 +400,17 @@ UNION
 /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
 , CTE_SOURCES_ASSIGN_PO_FR AS
 (
-    SELECT *,
-        CUSTBODY_FRPRDAYS AS FR_PREV_DAYS
-      FROM CTE_SOURCES_ASSIGN_PO
+    SELECT SRC_PO.*,
+        FR.CUSTBODY_FRPRDAYS AS FR_PREV_DAYS
+      FROM CTE_SOURCES_ASSIGN_PO SRC_PO
       JOIN (
         SELECT CUSTBODY_FRPRDAYS,count(*) NUM
-            FROM DEV.NETSUITE2_RAW_RESTRICT.TRANSACTION
+            FROM DEV.${vj_ns2_raw_schema}.TRANSACTION
             WHERE CUSTBODY_FRPRDAYS IS NOT NULL
             GROUP BY CUSTBODY_FRPRDAYS
             ORDER BY NUM DESC
             LIMIT 1
-      )
+      ) FR
 
 )
 
@@ -495,7 +418,7 @@ UNION
  -- results --
 ------------------------------------------------------------------------------------------------------------------------------------------------        
 
-    SELECT A.*
+    SELECT A.* RENAME CREATE_DATE AS TRANSACTION_CREATE_DATE
         /* 20230711 - KBY, RFS23-1850 - Include inventories for all FSA locations, and for forward-facing locations only */
          , ZEROIFNULL(B.Total_AVAIL_QTY_NONFWD) + ZEROIFNULL(INV_FWD.TOTAL_AVAIL_QTY_FWD)    AS TOTAL_AVAIL_QTY
          , ZEROIFNULL(B.TOTAL_AVAIL_QTY_NONFWD)                                              AS TOTAL_AVAIL_QTY_NONFWD
@@ -508,7 +431,7 @@ UNION
          , CAST(C.MASTERQTY AS varchar)                                     AS NUMBER_IN_CARTON
     /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
     FROM CTE_SOURCES_ASSIGN_PO_FR A
-    LEFT OUTER JOIN DEV.NETSUITE2.DIM_ITEM DI 
+    LEFT OUTER JOIN DEV.${vj_ns2_schema}.DIM_ITEM DI 
         ON A.ITEM_ID = DI.ITEM_ID
     /* 20230711 - KBY, RFS23-1850 - Include inventories for all FSA locations, and for forward-facing locations only */
     LEFT OUTER JOIN CTE_INVENTORY_NONFWD B
@@ -518,9 +441,6 @@ UNION
     LEFT OUTER JOIN CTE_CARTON C
         ON IFNULL(A.COMPONENT_ITEM_ID, A.ITEM_ID) = C.ITEM_ID     
     WHERE CAST(A.ORDER_NUMBER AS varchar) NOT LIKE ('%Planning%')
-    AND IFNULL(A.COMPONENT_ITEM::TEXT, '0') NOT IN (SELECT COMPONENT_ITEM::TEXT FROM DEV.NETSUITE2_FSA.COMPONENT_ITEMS_TO_EXCLUDE)
+    AND IFNULL(A.COMPONENT_ITEM::TEXT, '0') NOT IN (SELECT COMPONENT_ITEM::TEXT FROM DEV.${vj_fsa_schema}.COMPONENT_ITEMS_TO_EXCLUDE)
     /* 20230614 - KBY, HyperCare Ref #129 - also exclude ITEMs that appear on COMPONENT_ITEM exclusion list */
-    AND IFNULL(A.ITEM::TEXT, '0') NOT IN (SELECT COMPONENT_ITEM::TEXT FROM DEV.NETSUITE2_FSA.COMPONENT_ITEMS_TO_EXCLUDE)
-    ) AS "v_0000003085_0015756651"
-)
-;
+    AND IFNULL(A.ITEM::TEXT, '0') NOT IN (SELECT COMPONENT_ITEM::TEXT FROM DEV.${vj_fsa_schema}.COMPONENT_ITEMS_TO_EXCLUDE)

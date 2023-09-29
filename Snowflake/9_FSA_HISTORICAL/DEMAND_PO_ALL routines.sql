@@ -22,7 +22,7 @@
 --		ex: CALL MAKE_DEMAND_PO_ALL('2023-04-25 23:59','TEST_DEMAND_PO_ALL')
 --
 
-CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_DEMAND_PO_ALL (MAX_DATE timestamp_ltz)
+CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.LATEST_DEMAND_PO_ALL (MAX_DATE timestamp_ltz)
   RETURNS TABLE (
 	FK_ID NUMBER(38,0),
 	ORDER_NUMBER VARCHAR(360),
@@ -58,26 +58,26 @@ CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_DEMAND_PO_ALL (MAX_DATE
     /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
     FR_PREV_DAYS NUMBER,
     /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
-    FSA_COMPLETE,
+    FSA_COMPLETE VARCHAR(16777216),
 	FSA_LOAD_STATUS VARCHAR(16777216),
 	INSERT_DATE TIMESTAMP_LTZ(9),
 	ID NUMBER(18,0),
 	PK_ID VARCHAR(16777216))
 AS $$
     select t1.* exclude (fsa_insert_date,is_valid)
-      from DEV.${FSA_PROD_SCHEMA}.demand_po_all_historical t1
+      from DEV.${vj_fsa_schema}.demand_po_all_historical t1
       join (
         select distinct insert_date,max(fsa_insert_date) over () fsa_insert_date
-        from DEV.${FSA_PROD_SCHEMA}.demand_po_all_historical
+        from DEV.${vj_fsa_schema}.demand_po_all_historical
         where insert_date = 
           (select max(insert_date) insert_date
-            from DEV.${FSA_PROD_SCHEMA}.demand_po_all_historical
+            from DEV.${vj_fsa_schema}.demand_po_all_historical
             where insert_date <= MAX_DATE)) t2
       on t1.insert_date = t2.insert_date
         and t1.fsa_insert_date = t2.fsa_insert_date
 $$;
 
-CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_DEMAND_PO_ALL ()
+CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.LATEST_DEMAND_PO_ALL ()
   RETURNS TABLE (
 	FK_ID NUMBER(38,0),
 	ORDER_NUMBER VARCHAR(360),
@@ -113,16 +113,16 @@ CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_DEMAND_PO_ALL ()
     /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
     FR_PREV_DAYS NUMBER,
     /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
-    FSA_COMPLETE,
+    FSA_COMPLETE VARCHAR(16777216),
 	FSA_LOAD_STATUS VARCHAR(16777216),
 	INSERT_DATE TIMESTAMP_LTZ(9),
 	ID NUMBER(18,0),
 	PK_ID VARCHAR(16777216))
 AS $$
-	select * from TABLE(DEV.${FSA_PROD_SCHEMA}.LATEST_DEMAND_PO_ALL(current_timestamp()))
+	select * from TABLE(DEV.${vj_fsa_schema}.LATEST_DEMAND_PO_ALL(current_timestamp()))
 $$;
 
-CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_DEMAND_PO_ALL (time_as_text text)
+CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.LATEST_DEMAND_PO_ALL (time_as_text text)
   RETURNS TABLE (
 	FK_ID NUMBER(38,0),
 	ORDER_NUMBER VARCHAR(360),
@@ -158,49 +158,49 @@ CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_DEMAND_PO_ALL (time_as_
     /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
     FR_PREV_DAYS NUMBER,
     /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
-    FSA_COMPLETE,
+    FSA_COMPLETE VARCHAR(16777216),
 	FSA_LOAD_STATUS VARCHAR(16777216),
 	INSERT_DATE TIMESTAMP_LTZ(9),
 	ID NUMBER(18,0),
 	PK_ID VARCHAR(16777216))
 AS $$
-	select * from TABLE(DEV.${FSA_PROD_SCHEMA}.LATEST_DEMAND_PO_ALL(try_to_timestamp_ltz(time_as_text)))
+	select * from TABLE(DEV.${vj_fsa_schema}.LATEST_DEMAND_PO_ALL(try_to_timestamp_ltz(time_as_text)))
 $$;
 
-CREATE OR REPLACE PROCEDURE DEV.${FSA_PROD_SCHEMA}.MAKE_DEMAND_PO_ALL(MAX_DATE timestamp_ltz,TARGET_TABLE text)
+CREATE OR REPLACE PROCEDURE DEV.${vj_fsa_schema}.MAKE_DEMAND_PO_ALL(MAX_DATE timestamp_ltz,TARGET_TABLE text)
   RETURNS TABLE()
   LANGUAGE SQL
   EXECUTE AS CALLER
 AS $$
   BEGIN
-  LET rs RESULTSET := (CREATE OR REPLACE TABLE IDENTIFIER(:TARGET_TABLE) AS SELECT * FROM TABLE(DEV.${FSA_PROD_SCHEMA}.LATEST_DEMAND_PO_ALL(:MAX_DATE)));
+  LET rs RESULTSET := (CREATE OR REPLACE TABLE IDENTIFIER(:TARGET_TABLE) AS SELECT * FROM TABLE(DEV.${vj_fsa_schema}.LATEST_DEMAND_PO_ALL(:MAX_DATE)));
   return TABLE(rs);
   END;
 $$;
 
-CREATE OR REPLACE PROCEDURE DEV.${FSA_PROD_SCHEMA}.MAKE_DEMAND_PO_ALL(MAX_DATE timestamp_ltz)
+CREATE OR REPLACE PROCEDURE DEV.${vj_fsa_schema}.MAKE_DEMAND_PO_ALL(MAX_DATE timestamp_ltz)
   RETURNS TABLE()
   LANGUAGE SQL
   EXECUTE AS CALLER
 AS $$
   BEGIN
-  LET rs RESULTSET := (CALL DEV.${FSA_PROD_SCHEMA}.MAKE_DEMAND_PO_ALL(:MAX_DATE,'DEV.${FSA_PROD_SCHEMA}.DEMAND_PO_ALL'));
+  LET rs RESULTSET := (CALL DEV.${vj_fsa_schema}.MAKE_DEMAND_PO_ALL(:MAX_DATE,'DEV.${vj_fsa_schema}.DEMAND_PO_ALL'));
   return TABLE(rs);
   END;
 $$;
 
-CREATE OR REPLACE PROCEDURE DEV.${FSA_PROD_SCHEMA}.MAKE_DEMAND_PO_ALL()
+CREATE OR REPLACE PROCEDURE DEV.${vj_fsa_schema}.MAKE_DEMAND_PO_ALL()
   RETURNS TABLE()
   LANGUAGE SQL
   EXECUTE AS CALLER
 AS $$
   BEGIN
-  LET rs RESULTSET := (CALL DEV.${FSA_PROD_SCHEMA}.MAKE_DEMAND_PO_ALL(current_timestamp()));
+  LET rs RESULTSET := (CALL DEV.${vj_fsa_schema}.MAKE_DEMAND_PO_ALL(current_timestamp()));
   return TABLE(rs);
   END;
 $$;
 
-CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.DATES_DEMAND_PO_ALL()
+CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.DATES_DEMAND_PO_ALL()
   RETURNS TABLE(
     RECENT_OR_INORDER NUMBER,
     INSERT_DATE TIMESTAMP_LTZ,
@@ -212,21 +212,21 @@ $$
     select row_number() over (order by insert_date,fsa_insert_date)-1 rep_order,
             insert_date,
             max(fsa_insert_date) over (partition by insert_date) fsa_insert_date
-        from DEV.${FSA_PROD_SCHEMA}.demand_po_all_historical 
+        from DEV.${vj_fsa_schema}.demand_po_all_historical 
         where is_valid 
         group by insert_date,fsa_insert_date
     union
     select row_number() over (order by insert_date desc,fsa_insert_date)*-1 rep_order,
             insert_date,
             max(fsa_insert_date) over (partition by insert_date) fsa_insert_date
-        from DEV.${FSA_PROD_SCHEMA}.demand_po_all_historical 
+        from DEV.${vj_fsa_schema}.demand_po_all_historical 
         where is_valid 
         group by insert_date,fsa_insert_date
   )
   order by rep_order
 $$;
 
-CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_DEMAND_PO_ALL (recent_or_inorder number)
+CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.LATEST_DEMAND_PO_ALL (recent_or_inorder number)
   RETURNS TABLE (
 	FK_ID NUMBER(38,0),
 	ORDER_NUMBER VARCHAR(360),
@@ -262,15 +262,15 @@ CREATE OR REPLACE FUNCTION DEV.${FSA_PROD_SCHEMA}.LATEST_DEMAND_PO_ALL (recent_o
     /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
     FR_PREV_DAYS NUMBER,
     /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
-    FSA_COMPLETE,
+    FSA_COMPLETE VARCHAR(16777216),
 	FSA_LOAD_STATUS VARCHAR(16777216),
 	INSERT_DATE TIMESTAMP_LTZ(9),
 	ID NUMBER(18,0),
 	PK_ID VARCHAR(16777216))
 AS $$
 	select p.* exclude (fsa_insert_date,is_valid)
-    from DEV.${FSA_PROD_SCHEMA}.DEMAND_PO_ALL_HISTORICAL p
-    join table(DEV.${FSA_PROD_SCHEMA}.DATES_DEMAND_PO_ALL()) d
+    from DEV.${vj_fsa_schema}.DEMAND_PO_ALL_HISTORICAL p
+    join table(DEV.${vj_fsa_schema}.DATES_DEMAND_PO_ALL()) d
     	on p.insert_date = d.insert_date
            and p.fsa_insert_date = d.fsa_insert_date
     where p.is_valid
