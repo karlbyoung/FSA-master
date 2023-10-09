@@ -1,4 +1,4 @@
-SELECT  
+SELECT DISTINCT
     i.item_id
     ,i.full_name as Item 
     ,ic.bill_of_materials_ID
@@ -50,8 +50,8 @@ FROM DEV.${vj_fsa_schema}.NS_PURCHASE_ORDER_LINE_ITEM_AUX polia
 WHERE polia._POLI_IS_RECEIVED = 'FALSE'
        and po.order_number  not like  ('Planning%') --10/27/2022
        and po.status not in ('Closed','Fully Billed') --2023.04.04:JB:added this condition for RFS23-1190
-       /* 20230912 - KBY, RFS23-2653 - allow Product Lines marked "General" or "Other" for Sample orders */
---       and ftl.CLASS_NAME not in ('General','Other')
+       /* 20231005 - KBY, RFS23-2899 - exclude Product Lines marked "Other" */
+       and ftl.CLASS_NAME not in ('Other')
        /* 20230816 - KBY, RFS23-2441 Exclude PO marked as closed */
        and poli.IS_CLOSED = 'F'
 ORDER BY item_Id, polia.RECEIVE_BY_DATE
