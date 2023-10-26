@@ -13,6 +13,8 @@ WITH CTE_XFER AS (
         AND LOWER(TORD.LOCATION_TO) LIKE '%depo%'
         AND IFNULL(TOLI.QUANTITY_FULFILLED, 0) < ABS(TOLI.QUANTITY)
         AND IFNULL(TOLI.QUANTITY_COMMITTED, 0) = 0
+        /* 20231026 - KBY, RFS23-3351 Only include lines in Transfer orders not marked as closed */
+        AND TOLI.IS_CLOSED = 'F'
 )
 
 ----- 2. OPEN SALES ORDER JOINT Purchase Order ------
