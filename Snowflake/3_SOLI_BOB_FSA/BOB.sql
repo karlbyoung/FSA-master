@@ -167,6 +167,7 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.BOB AS
               ,cte.IF_BUCKET12
               ,cte.IF_BUCKET13
               ,cte.IF_BUCKET14
+              ,soli.FR_PREV_DAYS
       FROM DEV.${vj_fsa_schema}.SOLI soli
       LEFT JOIN CTE_SETIFDATE cte
              ON soli.ORDER_NUMBER = cte.ORDER_NUMBER
@@ -213,10 +214,16 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.BOB AS
             ,bucket.IF_BUCKET13
             ,bucket.IF_BUCKET14
             ,bucket.SOURCE_LOAD_DATE
+            /* 20231109 - KBY, RFS23-3534 - Provide FR Release Date as 7 days prior to CAPPING_DDA */
+            ,prevdays.LAND_DATE FR_RELEASE_DATE
     FROM CTE_SETBUCKETS bucket 
     LEFT OUTER JOIN CTE_CAPPING_DDA cap
       ON bucket.ORDER_NUMBER        = cap.ORDER_NUMBER
      AND bucket.BUCKET_ON_AVAIL_DATE   = cap.BUCKET_ON_AVAIL_DATE
+      /* 20231109 - KBY, RFS23-3534 - Provide FR Release Date as 7 days prior to CAPPING_DDA */
+    LEFT JOIN "DEV"."BUSINESS_OPERATIONS"."DIM_CALENDAR_BUSINESS_DAYS_SPAN" prevdays
+      ON prevdays."RAW_DATE" = cap."CAPPING_DDA"
+        AND prevdays."BIZDAYS" = -bucket.FR_PREV_DAYS
   )
   
   SELECT *

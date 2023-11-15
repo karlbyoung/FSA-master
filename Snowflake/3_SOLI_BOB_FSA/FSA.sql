@@ -34,8 +34,8 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.FSA AS
         ,SPA.AVAIL_DATE                               AS "ITEM_AVAIL_DATE"
         ,NULL::TEXT									  AS FSA_OUTPUT_STATUS
         ,bob.CAPPING_DDA                              AS "CAPPING_DDA"
---        ,IFF(SPA.FSA_LOAD_STATUS = 'NEW',
---             bob.CAPPING_DDA,prev.ORIG_CAP_DDA)       AS "ORIG_CAP_DDA"
+        /* 20231109 - KBY, RFS23-3534 - Provide FR Release Date, prior to CAPPING_DDA */
+        ,bob.FR_RELEASE_DATE                          AS "FR_RELEASE_DATE"
         ,IFNULL(prev.ORIG_CAP_DDA,bob.CAPPING_DDA)    AS "ORIG_CAP_DDA"
         ,bob.AVAIL_DATE                               AS "NEW_AVAIL_DATE"
         ,prev.PREV_AVAIL_DATE                         AS "PREV_AVAIL_DATE"

@@ -33,10 +33,9 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}."SOLI" AS
            soli.ID 					AS "FK_SPA_ID", 
            soli.SOURCE_LOAD_DATE 	AS "SOURCE_LOAD_DATE",
           /* 20230605 - KBY, Hypercare Ref #117 - include SOURCE_TYPE */
-           soli.SOURCE_TYPE
-           
-         
-           
+           soli.SOURCE_TYPE,
+          /* 20231109 - KBY, RFS23-3534 - include FR_PREV_DAYS for calculating FR_RELEASE_DATE */
+           soli.FR_PREV_DAYS  
     FROM "SOLI_CTE" soli
     /* 202307126 - KBY, RFS23-2033 - Adjust FREDD calculation to account for shorter turnaround at 3PLs,  use variable span over business days */
     LEFT JOIN "DEV"."BUSINESS_OPERATIONS"."DIM_CALENDAR_BUSINESS_DAYS_SPAN" cal
