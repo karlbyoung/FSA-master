@@ -1,7 +1,7 @@
 CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.FSA AS
   SELECT DISTINCT 
          SPA.*
-         EXCLUDE (AVAIL_DATE) 
+         EXCLUDE (AVAIL_DATE,FSA_COMPLETE) 
          RENAME (
            QTY_ON_HAND             AS "TOTAL_AVAIL_QTY",
            REMAINING_QTY_ON_HAND   AS "REMAINING_AVAIL_QTY",
@@ -44,6 +44,13 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.FSA AS
         ,prev.PO_INDICATOR_ASSIGN                     AS "PREV_PO_INDICATOR_ASSIGN"
         ,prev.PO_ORDER_NUMBER                         AS "PREV_PO_ORDER_NUMBER"
         ,prev.PO_RECEIVE_BY_DATE                      AS "PREV_PO_RECEIVE_BY_DATE"
+        ,SPA.FSA_COMPLETE                             AS "FSA_COMPLETE"
+      /* 20231128 - KBY, RSF23-3656 - Track date when no PO order available for backorder */ 
+        ,CASE 
+          WHEN SPA.PO_INDICATOR != -1 OR SPA.PO_INDICATOR_ASSIGN != 0 THEN NULL::TIMESTAMP_LTZ
+          WHEN prev.NO_PO_DATE IS NOT NULL THEN prev.NO_PO_DATE
+          ELSE SPA.SOURCE_LOAD_DATE
+         END                                          AS "NO_PO_DATE"
   FROM DEV.${vj_fsa_schema}.SEQUENCING_PO_ASSIGN SPA
   INNER JOIN DEV.${vj_fsa_schema}.BOB bob
     ON SPA.ID = bob.FK_SPA_ID

@@ -25,7 +25,8 @@ MERGE INTO DEV.${vj_fsa_schema}.DEMAND_PREV_ASSIGNED t1
             NULL::TEXT,     -- PO_ORDER_NUMBER,
             NULL::DATE,     -- PO_RECEIVE_BY_DATE DATE
               /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
-            t2.FR_PREV_DAYS -- FR_PREV_DAYS
+            t2.FR_PREV_DAYS, -- FR_PREV_DAYS,
+            NULL::TIMESTAMP_LTZ -- NO_PO_DATE
             );
 
 -- Update ROW_NOs for all the new DEMAND_PO's

@@ -42,7 +42,9 @@ CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.LATEST_DEMAND_PREV_ASSIGNED (MAX
   PO_ORDER_NUMBER VARCHAR(16777216),
   PO_RECEIVE_BY_DATE DATE,
     /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
-  FR_PREV_DAYS NUMBER
+  FR_PREV_DAYS NUMBER,
+  /* 20231128 - KBY, RSF23-3656 - Track date when no PO order available for backorder */ 
+  NO_PO_DATE TIMESTAMP_LTZ
 )
 AS $$
     select t1.* exclude (is_valid,fsa_insert_date)
@@ -80,7 +82,9 @@ CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.LATEST_DEMAND_PREV_ASSIGNED ()
   PO_ORDER_NUMBER VARCHAR(16777216),
   PO_RECEIVE_BY_DATE DATE,
     /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
-  FR_PREV_DAYS NUMBER
+  FR_PREV_DAYS NUMBER,
+  /* 20231128 - KBY, RSF23-3656 - Track date when no PO order available for backorder */ 
+  NO_PO_DATE TIMESTAMP_LTZ
 )
 AS $$
   select * from TABLE(DEV.${vj_fsa_schema}.LATEST_DEMAND_PREV_ASSIGNED(current_timestamp()))
@@ -106,7 +110,9 @@ CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.LATEST_DEMAND_PREV_ASSIGNED (tim
   PO_ORDER_NUMBER VARCHAR(16777216),
   PO_RECEIVE_BY_DATE DATE,
     /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
-  FR_PREV_DAYS NUMBER
+  FR_PREV_DAYS NUMBER,
+  /* 20231128 - KBY, RSF23-3656 - Track date when no PO order available for backorder */ 
+  NO_PO_DATE TIMESTAMP_LTZ
 )
 AS $$
   select * from TABLE(DEV.${vj_fsa_schema}.LATEST_DEMAND_PREV_ASSIGNED(try_to_timestamp_ltz(time_as_text)))
@@ -199,7 +205,9 @@ CREATE OR REPLACE FUNCTION DEV.${vj_fsa_schema}.LATEST_DEMAND_PREV_ASSIGNED (rec
   PO_ORDER_NUMBER VARCHAR(16777216),
   PO_RECEIVE_BY_DATE DATE,
     /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
-  FR_PREV_DAYS NUMBER
+  FR_PREV_DAYS NUMBER,
+  /* 20231128 - KBY, RSF23-3656 - Track date when no PO order available for backorder */ 
+  NO_PO_DATE TIMESTAMP_LTZ
 )
 AS $$
   select p.* exclude (fsa_insert_date,is_valid)

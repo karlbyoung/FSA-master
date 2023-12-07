@@ -19,6 +19,8 @@ INSERT INTO DEV.${vj_fsa_schema}.DEMAND_PREV_ASSIGNED_HISTORICAL
         PO_RECEIVE_BY_DATE, 
         /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
         FR_PREV_DAYS,
+        /* 20231128 - KBY, RSF23-3656 - Track date when no PO order available for backorder */ 
+        NO_PO_DATE,
         TRUE IS_VALID, 
         CURRENT_TIMESTAMP() FSA_INSERT_DATE
 FROM DEV.${vj_fsa_schema}.DEMAND_PREV_ASSIGNED;

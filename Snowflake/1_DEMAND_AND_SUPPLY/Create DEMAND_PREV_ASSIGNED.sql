@@ -18,4 +18,33 @@ CREATE TABLE IF NOT EXISTS DEV.${vj_fsa_schema}.DEMAND_PREV_ASSIGNED
      PO_ORDER_NUMBER TEXT,
      PO_RECEIVE_BY_DATE DATE,
   /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
-     FR_PREV_DAYS NUMBER);
+     FR_PREV_DAYS NUMBER,
+  /* 20231128 - KBY, RSF23-3656 - Track date when no PO order available for backorder */ 
+     NO_PO_DATE TIMESTAMP_LTZ);
+
+/*
+CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.DEMAND_PREV_ASSIGNED_NEW AS
+  SELECT 
+    t1.PK_ID,
+    t1.UNIQUE_KEY,
+    t1.COMPONENT_ITEM_ID,
+    t1.ORDER_NUMBER,
+    t1.NS_LINE_NUMBER,
+    t1.HASH_VALUE,
+    t1.HASH_FSA_OUTPUT,
+    t1.INSERT_DATE,
+    t1.LAST_MODIFIED,
+    t1.ROW_NO,
+    t1.PREV_AVAIL_DATE,
+    t1.PREV_CAPPING_DDA,
+    t1.ORIG_CAP_DDA,
+    t1.PO_INDICATOR,
+    t1.PO_INDICATOR_ASSIGN,
+    t1.PO_ORDER_NUMBER,
+    t1.PO_RECEIVE_BY_DATE,
+    t1.FR_PREV_DAYS,
+    t2.NO_PO_DATE
+  FROM DEV.${vj_fsa_schema}.DEMAND_PREV_ASSIGNED t1
+  JOIN DEV.${vj_fsa_schema}.FSA_WITH_NO_PO_DATE t2
+    ON t1.PK_ID = t2.PK_ID
+ */
