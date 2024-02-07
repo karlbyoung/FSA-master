@@ -5,14 +5,23 @@ WITH CTE_XFER AS (
         , TOLI.TRANSFER_ORDER_TRANSACTION_ID AS TRANSACTION_ID
         , IFNULL(TOLI.QUANTITY_FULFILLED, 0) AS QUANTITY_FULFILLED                                   
         , TORD.* RENAME TRANSACTION_TYPE AS "HEADER_TRANSACTION_TYPE"
-        , TOLI.*                       
+        , TOLI.*
+        /* 20240117 - KBY, RFS23-3950 Temporary CASE statement until TRANSFER_ORDER_TYPES are filled in */
+        , CASE
+            WHEN TORD.TRANSFER_ORDER_TYPE IS NULL AND TORD.LOCATION_TO ILIKE '%depo%' THEN 'Depo Stock Request'
+            ELSE TRANSFER_ORDER_TYPE
+          END AS TRANSFER_ORDER_TYPE
+        , REQUESTED_DDA
     FROM DEV.${vj_ns2_schema}.FACT_TRANSFER_ORDER_LINE_ITEM TOLI
     JOIN DEV.${vj_ns2_schema}.FACT_TRANSFER_ORDER TORD
         ON TOLI.TRANSFER_ORDER_TRANSACTION_ID = TORD.TRANSFER_ORDER_TRANSACTION_ID
-        AND TORD.STATUS NOT IN ('Closed', 'Cancelled')
-        AND LOWER(TORD.LOCATION_TO) LIKE '%depo%'
+    WHERE
+        TORD.STATUS NOT IN ('Closed', 'Cancelled')
+        /* 20240112 - KBY, RFS23-3951,3952,3953,3954 Adjust filter of qualifying Transfer orders */
+        /*  Do not include 'Other' or 'Inventory Transformation' */
+        AND TRANSFER_ORDER_TYPE in ('Depo Stock Request','Fulfillment','Assembly')
         AND IFNULL(TOLI.QUANTITY_FULFILLED, 0) < ABS(TOLI.QUANTITY)
-        AND IFNULL(TOLI.QUANTITY_COMMITTED, 0) = 0
+        AND IFNULL(TOLI.QUANTITY_COMMITTED, 0) = 0  -- KBY ?? does this apply for 'Fulfillment Transfer Order' and 'Assembly Transfer Order'
         /* 20231026 - KBY, RFS23-3351 Only include lines in Transfer orders not marked as closed */
         AND TOLI.IS_CLOSED = 'F'
 )
