@@ -22,6 +22,10 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.DEMAND_PO_ALL AS
           ,'Hold Review OE'
           /* 20231208 - KBY, RFS23-3779 - Exclude "OE Info Collection" from DEMAND_PO */
           ,'OE Info Collection'
+          /* 20240207 - KBY, RFS23-4337 - Exclude "Hold" from DEMAND_PO */
+          ,'Hold'
+          /* 20240207 - KBY, RFS23-4280 - Exclude "Hold Review OE - Review Quantity" from DEMAND_PO */
+          ,'Hold Review OE - Review Quantity'
        )
       AND IFF(SOURCETYPE = 'OpenSO', SALES_ORDER_TYPE IN ('2','104'), TRUE)
       AND ORDER_NUMBER NOT IN ('26817','25981','26501') -- PROD ONLY
