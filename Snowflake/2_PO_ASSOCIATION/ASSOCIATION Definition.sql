@@ -75,34 +75,70 @@ while (PO_ID <= MAX_PO_ID) {
                           ,SO.PO_INDICATOR
                           ,` + CUR_RUN_DATE + ` AS "PO_UPDATE_DATETIME"
                           /* 20230717 - KBY, RFS23-1850 - Select PO's for forward-facing-only locations only and all locations (including non-forward-facing) */
-                          ,FIRST_VALUE(OP."ORDER_NUMBER")            OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP."NS_RECEIVE_BY_DATE", OP."ORDER_NUMBER") AS "ALL_PO_ORDER_NUMBER"
-                          ,FIRST_VALUE(OP."QUANTITY_TO_BE_RECEIVED") OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP."NS_RECEIVE_BY_DATE", OP."ORDER_NUMBER") AS "ALL_PO_QUANTITY_TO_BE_RECEIVED"
-                          ,FIRST_VALUE(OP."NS_RECEIVE_BY_DATE")      OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP."NS_RECEIVE_BY_DATE", OP."ORDER_NUMBER") AS "ALL_PO_RECEIVE_BY_DATE"
-                          ,FIRST_VALUE(OP_FWD."ORDER_NUMBER")            OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP_FWD."NS_RECEIVE_BY_DATE", OP_FWD."ORDER_NUMBER") AS "FWD_PO_ORDER_NUMBER"
-                          ,FIRST_VALUE(OP_FWD."QUANTITY_TO_BE_RECEIVED") OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP_FWD."NS_RECEIVE_BY_DATE", OP_FWD."ORDER_NUMBER") AS "FWD_PO_QUANTITY_TO_BE_RECEIVED"
-                          ,FIRST_VALUE(OP_FWD."NS_RECEIVE_BY_DATE")      OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP_FWD."NS_RECEIVE_BY_DATE", OP_FWD."ORDER_NUMBER") AS "FWD_PO_RECEIVE_BY_DATE"
-                          /*  20230609 - KBY, HyperCare 113 - reduce PO qty remaining by the qty that was ordered, less any available qty that was left */
-                          ,IFF(SO.IS_ASSEMBLY_COMPONENT,ALL_PO_ORDER_NUMBER,FWD_PO_ORDER_NUMBER)                               AS "PO_ORDER_NUMBER"
-                          ,IFF(SO.IS_ASSEMBLY_COMPONENT,ALL_PO_QUANTITY_TO_BE_RECEIVED,FWD_PO_QUANTITY_TO_BE_RECEIVED)         AS "PO_QUANTITY_TO_BE_RECEIVED"
-                          ,("PO_QUANTITY_TO_BE_RECEIVED" - SO."QTY_ORDERED" + IFF(SO."IS_PARTIAL_QTY",SO."AVAIL_QTY_USED",0))  AS "PO_QUANTITY_REMAINING"
-                          ,IFF(SO.IS_ASSEMBLY_COMPONENT,ALL_PO_RECEIVE_BY_DATE,FWD_PO_RECEIVE_BY_DATE)                         AS "PO_RECEIVE_BY_DATE"
-                          ,IFF(SO.IS_ASSEMBLY_COMPONENT,OP.OG_QUANTITY_TO_BE_RECEIVED,OP_FWD.OG_QUANTITY_TO_BE_RECEIVED)       AS "OG_QUANTITY_TO_BE_RECEIVED"
+                          ,FIRST_VALUE(OP."ORDER_NUMBER")            
+                            OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP."NS_RECEIVE_BY_DATE", OP."ORDER_NUMBER")          AS "JUST_PO_ORDER_NUMBER"
+                          ,FIRST_VALUE(OP."QUANTITY_TO_BE_RECEIVED") 
+                            OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP."NS_RECEIVE_BY_DATE", OP."ORDER_NUMBER")          AS "JUST_PO_QUANTITY_TO_BE_RECEIVED"
+                          ,FIRST_VALUE(OP."NS_RECEIVE_BY_DATE")      
+                            OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP."NS_RECEIVE_BY_DATE", OP."ORDER_NUMBER")          AS "JUST_PO_RECEIVE_BY_DATE"
+                          ,FIRST_VALUE(OP_FWD."ORDER_NUMBER")            
+                            OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP_FWD."NS_RECEIVE_BY_DATE", OP_FWD."ORDER_NUMBER")  AS "FWD_PO_ORDER_NUMBER"
+                          ,FIRST_VALUE(OP_FWD."QUANTITY_TO_BE_RECEIVED") 
+                            OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP_FWD."NS_RECEIVE_BY_DATE", OP_FWD."ORDER_NUMBER")  AS "FWD_PO_QUANTITY_TO_BE_RECEIVED"
+                          ,FIRST_VALUE(OP_FWD."NS_RECEIVE_BY_DATE")      
+                            OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP_FWD."NS_RECEIVE_BY_DATE", OP_FWD."ORDER_NUMBER")  AS "FWD_PO_RECEIVE_BY_DATE"
+                          ,FIRST_VALUE(OP_ASM."ORDER_NUMBER")            
+                            OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP_ASM."NS_RECEIVE_BY_DATE", OP_ASM."ORDER_NUMBER")  AS "ASM_PO_ORDER_NUMBER"
+                          ,FIRST_VALUE(OP_ASM."QUANTITY_TO_BE_RECEIVED") 
+                            OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP_ASM."NS_RECEIVE_BY_DATE", OP_ASM."ORDER_NUMBER")  AS "ASM_PO_QUANTITY_TO_BE_RECEIVED"
+                          ,FIRST_VALUE(OP_ASM."NS_RECEIVE_BY_DATE")      
+                            OVER (PARTITION BY "ITEM_ID_BY_TRANSACTION_TYPE" ORDER BY SO."ROW_NO", OP_ASM."NS_RECEIVE_BY_DATE", OP_ASM."ORDER_NUMBER")  AS "ASM_PO_RECEIVE_BY_DATE"
+                          ,CASE WHEN SO.IS_ASSEMBLY_COMPONENT  THEN ASM_PO_ORDER_NUMBER
+                                WHEN SO.SOURCE_TYPE = 'OpenSO' THEN FWD_PO_ORDER_NUMBER
+                                WHEN SO.SOURCE_TYPE = 'XFER'   THEN JUST_PO_ORDER_NUMBER
+                                ELSE NULL
+                           END                                                                        AS PO_ORDER_NUMBER
+                          ,CASE WHEN SO.IS_ASSEMBLY_COMPONENT  THEN ASM_PO_QUANTITY_TO_BE_RECEIVED
+                                WHEN SO.SOURCE_TYPE = 'OpenSO' THEN FWD_PO_QUANTITY_TO_BE_RECEIVED
+                                WHEN SO.SOURCE_TYPE = 'XFER'   THEN JUST_PO_QUANTITY_TO_BE_RECEIVED
+                                ELSE NULL
+                           END                                                                        AS PO_QUANTITY_TO_BE_RECEIVED
+                          ,CASE WHEN SO.IS_ASSEMBLY_COMPONENT  THEN ASM_PO_RECEIVE_BY_DATE
+                                WHEN SO.SOURCE_TYPE = 'OpenSO' THEN FWD_PO_RECEIVE_BY_DATE
+                                WHEN SO.SOURCE_TYPE = 'XFER'   THEN JUST_PO_RECEIVE_BY_DATE
+                                ELSE NULL
+                           END                                                                        AS PO_RECEIVE_BY_DATE
+                          ,CASE WHEN SO.IS_ASSEMBLY_COMPONENT  THEN OP_ASM.OG_QUANTITY_TO_BE_RECEIVED
+                                WHEN SO.SOURCE_TYPE = 'OpenSO' THEN OP_FWD.OG_QUANTITY_TO_BE_RECEIVED
+                                WHEN SO.SOURCE_TYPE = 'XFER'   THEN OP.OG_QUANTITY_TO_BE_RECEIVED
+                                ELSE NULL
+                           END                                                                        AS OG_QUANTITY_TO_BE_RECEIVED
+                          ,("PO_QUANTITY_TO_BE_RECEIVED" - SO."QTY_ORDERED" + IFF(SO."IS_PARTIAL_QTY",SO."AVAIL_QTY_USED",0))                           AS "PO_QUANTITY_REMAINING"
                       FROM DEV.${vj_fsa_schema}."UNASSIGNED_DEMAND" SO
                       LEFT OUTER JOIN DEV.${vj_fsa_schema}."OPEN_PO_TRACKED" OP
                         ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" =  OP."ITEM_ID" 
                         AND SO."QTY_ORDERED"                 <= OP."QUANTITY_TO_BE_RECEIVED"
+                        AND OP.PO_ITEM_TYPE              NOT IN ('Fulfillment Transfer Order','Assembly Transfer Order')
                         /* 20230717 - KBY, RFS23-1850 - Select PO's for forward-facing-only locations only  */
                       LEFT OUTER JOIN DEV.${vj_fsa_schema}."OPEN_PO_TRACKED" OP_FWD
                         ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" =  OP_FWD."ITEM_ID" 
                         AND SO."QTY_ORDERED"                 <= OP_FWD."QUANTITY_TO_BE_RECEIVED"
+                        AND OP_FWD.PO_ITEM_TYPE              IN ('Fulfillment Transfer Order','No Assembly')
                         AND OP_FWD.IS_FWD_LOCATION                                                  -- TRUE only if a forward-facing location
+                      LEFT OUTER JOIN DEV.${vj_fsa_schema}."OPEN_PO_TRACKED" OP_ASM
+                        ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" =  OP_ASM."ITEM_ID" 
+                        AND SO."QTY_ORDERED"                 <= OP_ASM."QUANTITY_TO_BE_RECEIVED"
+                        AND OP_ASM.PO_ITEM_TYPE              IN ('Assembly Transfer Order','ASSEMBLY')
                       WHERE 
-                        (OP."ORDER_NUMBER" IS NOT NULL OR OP_FWD."ORDER_NUMBER" IS NOT NULL)
-                        AND "PO_ID" = ` + PO_ID + `) 
-                    SELECT * EXCLUDE (ALL_PO_ORDER_NUMBER,ALL_PO_QUANTITY_TO_BE_RECEIVED,ALL_PO_RECEIVE_BY_DATE,FWD_PO_ORDER_NUMBER,FWD_PO_QUANTITY_TO_BE_RECEIVED,FWD_PO_RECEIVE_BY_DATE)
+                        (OP.ORDER_NUMBER IS NOT NULL OR OP_FWD.ORDER_NUMBER IS NOT NULL OR OP_ASM.ORDER_NUMBER IS NOT NULL)
+                        AND PO_ID = ` + PO_ID + 
+                    `) 
+                    SELECT * EXCLUDE (JUST_PO_ORDER_NUMBER,JUST_PO_QUANTITY_TO_BE_RECEIVED,JUST_PO_RECEIVE_BY_DATE,
+                                      FWD_PO_ORDER_NUMBER,FWD_PO_QUANTITY_TO_BE_RECEIVED,FWD_PO_RECEIVE_BY_DATE,
+                                      ASM_PO_ORDER_NUMBER,ASM_PO_QUANTITY_TO_BE_RECEIVED,ASM_PO_RECEIVE_BY_DATE)
                       FROM CTE_PO_ASSIGN
-                      WHERE "PO_ORDER_NUMBER" IS NOT NULL
-                      ORDER BY "ITEM_ID", "ROW_NO", IFNULL("PO_ID", 0)`;
+                      WHERE PO_ORDER_NUMBER IS NOT NULL
+                      ORDER BY ITEM_ID, ROW_NO, IFNULL(PO_ID, 0)`;
 
     snowflake.execute({sqlText: foo_sql})
 
@@ -117,11 +153,12 @@ while (PO_ID <= MAX_PO_ID) {
                                      , OP.ITEM_ID_C
                                      , OP.ASSEMBLY_ITEM_ID
                                      , OP.ORDER_NUMBER
-                                     , OP."OG_QUANTITY_TO_BE_RECEIVED"
-                                     , IFF(SO."PO_QUANTITY_REMAINING" IS NOT NULL, SO."PO_QUANTITY_REMAINING", OP."QUANTITY_TO_BE_RECEIVED") AS "QUANTITY_TO_BE_RECEIVED"
+                                     , OP.OG_QUANTITY_TO_BE_RECEIVED
+                                     , IFF(SO.PO_QUANTITY_REMAINING IS NOT NULL, SO.PO_QUANTITY_REMAINING, OP.QUANTITY_TO_BE_RECEIVED) AS QUANTITY_TO_BE_RECEIVED
                                      , OP.NS_RECEIVE_BY_DATE
                                      , OP.PO_ROW_NO
                                      , OP.IS_FWD_LOCATION
+                                     , PO_ITEM_TYPE
                        FROM DEV.${vj_fsa_schema}."OPEN_PO_TRACKED" OP
                        LEFT OUTER JOIN DEV.${vj_fsa_schema}."DEMAND_ASSIGNMENT_TRACKED" SO
                        	 ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" = OP."ITEM_ID" 

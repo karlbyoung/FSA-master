@@ -16,9 +16,9 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.ASSIGNED_DEMAND AS
           , NULL                                                           AS "PO_UPDATE_DATETIME"
           , NULL                                                           AS "PO_ORDER_NUMBER"
           , NULL                                                           AS "PO_QUANTITY_TO_BE_RECEIVED"
-          , NULL                                                           AS "PO_QUANTITY_REMAINING"
           , NULL                                                           AS "PO_RECEIVE_BY_DATE"
           , NULL                                                           AS "OG_QUANTITY_TO_BE_RECEIVED"
+          , NULL                                                           AS "PO_QUANTITY_REMAINING"
     FROM DEV.${vj_fsa_schema}.SEQ_DEMAND_PO
     WHERE PO_INDICATOR != -1
     ORDER BY ITEM_ID, ROW_NO;
@@ -30,11 +30,12 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.OPEN_PO_TRACKED AS
          , ITEM_ID_C
          , ASSEMBLY_ITEM_ID
          , ORDER_NUMBER
-         , QUANTITY_TO_BE_RECEIVED AS "OG_QUANTITY_TO_BE_RECEIVED"
+         , QUANTITY_TO_BE_RECEIVED                                         AS OG_QUANTITY_TO_BE_RECEIVED
          , QUANTITY_TO_BE_RECEIVED
          , NS_RECEIVE_BY_DATE
          , PO_ROW_NO
           /* 20230717 - KBY, RFS23-1850 - Distinguish forward-facing locations only */
-         , (LOCATION NOT IN ('Booksource', 'Continuum') ) AS "IS_FWD_LOCATION"
+         , (LOCATION NOT IN ('Booksource', 'Continuum') )                  AS IS_FWD_LOCATION
+         , PO_ITEM_TYPE
     FROM DEV.${vj_fsa_schema}.OPEN_PO_ALL
     ORDER BY PO_ITEM_ID, PO_ROW_NO, NS_RECEIVE_BY_DATE, ORDER_NUMBER;
