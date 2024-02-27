@@ -4,14 +4,51 @@ WITH CTE_XFER AS (
     SELECT ABS(TOLI.QUANTITY) AS Abs_QUANTITY
         , TOLI.TRANSFER_ORDER_TRANSACTION_ID AS TRANSACTION_ID
         , IFNULL(TOLI.QUANTITY_FULFILLED, 0) AS QUANTITY_FULFILLED                                   
-        , TORD.* RENAME TRANSACTION_TYPE AS "HEADER_TRANSACTION_TYPE"
-        , TOLI.*
+        , TORD.ORDER_NUMBER
+        , TORD.TRANSFER_ORDER_TRANSACTION_ID
+        , TORD.STATUS
+        , TORD.CREATE_DATE
+        , TORD.TRANSACTION_DATE
+        , TORD.LOCATION_FROM
+        , TORD.LOCATION_TO
+        , TORD.MEMO
+        , TORD.IS_DELETED
+        , TORD.IS_SERVICE_PO
+        , TORD.DDA_OVERRIDE_DATE
+        , TORD.TRANSACTION_TYPE AS HEADER_TRANSACTION_TYPE
+        , TORD.TRANSFER_ORDER_TYPE_ID
+        , TORD.TRANSFER_ORDER_TYPE
+        , TORD.REQUESTED_DDA
+        , TOLI.UNIQUE_KEY
+        , TOLI.ITEM
+        , TOLI.ITEM_ID
+        , TOLI.ITEM_DISPLAY_NAME
+        , TOLI.QUANTITY
+        , TOLI.DDA TOLI_DDA
+        , TOLI.DDB
+        , TOLI.TRANSACTION_TYPE
+        , TOLI.IS_CLOSED
+        , TOLI.TRANSACTION_LINE_TYPE
+        , TOLI.DATE_CREATED
+        , TOLI.DATE_LAST_MODIFIED
+        , TOLI.DATE_DELETED
+        , TOLI.QUANTITY_COMMITTED
+        , TOLI.QUANTITY_PACKED
+        , TOLI.QUANTITY_PICKED
+        , TOLI.TRANSACTION_LINE_ID
+        , TOLI.NS_LINE_NUMBER
+        , TOLI.IS_DELETED IS_DELETED_2
         /* 20240117 - KBY, RFS23-3950 Temporary CASE statement until TRANSFER_ORDER_TYPES are filled in */
         , CASE
             WHEN TORD.TRANSFER_ORDER_TYPE IS NULL AND TORD.LOCATION_TO ILIKE '%depo%' THEN 'Depo Stock Request'
-            ELSE TRANSFER_ORDER_TYPE
-          END AS TRANSFER_ORDER_TYPE
-        , REQUESTED_DDA
+            ELSE TORD.TRANSFER_ORDER_TYPE
+          END AS TRANSFER_ORDER_TYPE_MOD
+        /* 20240216 - KBY, RFS23-3951,3952 Adjust DDA of qualifying Transfer orders */
+        , CASE
+            WHEN TRANSFER_ORDER_TYPE_MOD in ('Fulfillment','Assembly') 
+              THEN TORD.REQUESTED_DDA::DATE
+            ELSE TORD.DDA_OVERRIDE_DATE::DATE
+          END AS DDA
     FROM DEV.${vj_ns2_schema}.FACT_TRANSFER_ORDER_LINE_ITEM TOLI
     JOIN DEV.${vj_ns2_schema}.FACT_TRANSFER_ORDER TORD
         ON TOLI.TRANSFER_ORDER_TRANSACTION_ID = TORD.TRANSFER_ORDER_TRANSACTION_ID
@@ -19,9 +56,9 @@ WITH CTE_XFER AS (
         TORD.STATUS NOT IN ('Closed', 'Cancelled')
         /* 20240112 - KBY, RFS23-3951,3952,3953,3954 Adjust filter of qualifying Transfer orders */
         /*  Do not include 'Other' or 'Inventory Transformation' */
-        AND TRANSFER_ORDER_TYPE in ('Depo Stock Request','Fulfillment','Assembly')
+        AND TRANSFER_ORDER_TYPE_MOD in ('Depo Stock Request','Fulfillment','Assembly')
         AND IFNULL(TOLI.QUANTITY_FULFILLED, 0) < ABS(TOLI.QUANTITY)
-        AND IFNULL(TOLI.QUANTITY_COMMITTED, 0) = 0  -- KBY ?? does this apply for 'Fulfillment Transfer Order' and 'Assembly Transfer Order'
+        AND IFNULL(TOLI.QUANTITY_COMMITTED, 0) = 0
         /* 20231026 - KBY, RFS23-3351 Only include lines in Transfer orders not marked as closed */
         AND TOLI.IS_CLOSED = 'F'
 )
@@ -83,6 +120,7 @@ WITH CTE_XFER AS (
     FROM DEV.${vj_fsa_schema}.NS_SALES_ORDER_LINE_ITEM A
     JOIN DEV.${vj_ns2_schema}.FACT_SO_LINE_ITEM FSOLI
         ON A.SOLI_UNIQUE_KEY = FSOLI.UNIQUE_KEY
+        /* AND A.SO_ORDER_NUMBER = FSOLI.TRAN_ID  -- SANDBOX PATCH 2024-02-12 */
     LEFT OUTER JOIN DEV.${vj_fsa_schema}.NS_ITEMS_AT_LOCATIONS D
         ON A.SOLI_ITEM_ID = D.ITEM_ID  
         AND A.IFFLI_LOCATION = D.LOCATION
@@ -238,7 +276,8 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
 , CTE_SOURCES_ASSIGN_PO AS (                 
     SELECT A.ORDER_NUMBER
         , A.UNIQUE_KEY
-        , CAST(DDA_OVERRIDE_DATE AS date) AS DDA
+        /* 20240216 - KBY, RFS23-3951,3952 Use adjusted DDA */
+        , A.DDA
         , A.TRANSACTION_TYPE
         , 0 AS TOTAL_AMT
         , A.ITEM 
@@ -268,7 +307,7 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
     FROM CTE_XFER A
     GROUP BY A.ORDER_NUMBER
         , A.UNIQUE_KEY
-        , TO_DATE(DDA_OVERRIDE_DATE)
+        , A.DDA
         , A.TRANSACTION_TYPE
         , A.ITEM
         , A.ITEM_ID
