@@ -21,8 +21,8 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.OPEN_PO_ALL AS (
         , LOCATION                                                                AS LOCATION
         , IFF(RECEIVE_BY_DATE::DATE < CURRENT_DATE()
              , CAL.MIN_ADD_5
-             , RECEIVE_BY_DATE)                                                   AS RECEIVE_BY_DATE
-         , RECEIVE_BY_DATE                                                        AS NS_RECEIVE_BY_DATE
+             , RECEIVE_BY_DATE::DATE)                                             AS RECEIVE_BY_DATE
+         , RECEIVE_BY_DATE::DATE                                                  AS NS_RECEIVE_BY_DATE
         /* 20230804 - KBY, RSF23-1861 - Convert ID's from FLOAT to NUMBER */
         , UNIQUE_KEY::NUMBER                                                      AS UNIQUE_KEY
         , FLOOR(QUANITITY_TO_BE_RECEIVED)::NUMBER                                 AS QUANTITY_TO_BE_RECEIVED
@@ -69,8 +69,8 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.OPEN_PO_ALL AS (
         , LOCATION_TO                                                                   AS LOCATION
         , IFF(REQUESTED_DDA::DATE < CURRENT_DATE()
              , CAL.MIN_ADD_5
-             , REQUESTED_DDA)                                                           AS RECEIVE_BY_DATE
-         , REQUESTED_DDA                                                                AS NS_RECEIVE_BY_DATE
+             , REQUESTED_DDA::DATE)                                                     AS RECEIVE_BY_DATE
+         , REQUESTED_DDA::DATE                                                          AS NS_RECEIVE_BY_DATE
         , UNIQUE_KEY::NUMBER                                                            AS UNIQUE_KEY
         , FLOOR(QUANTITY_COMMITTED-QUANTITY_FULFILLED)::NUMBER                        AS QUANTITY_TO_BE_RECEIVED
     FROM DEV.${vj_fsa_schema}.V_XFER_SUPPLY 

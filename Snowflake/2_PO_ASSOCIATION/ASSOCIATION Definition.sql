@@ -103,6 +103,7 @@ while (PO_ID <= MAX_PO_ID) {
                                 WHEN SO.SOURCE_TYPE = 'XFER'   THEN JUST_PO_QUANTITY_TO_BE_RECEIVED
                                 ELSE NULL
                            END                                                                        AS PO_QUANTITY_TO_BE_RECEIVED
+                          ,("PO_QUANTITY_TO_BE_RECEIVED" - SO."QTY_ORDERED" + IFF(SO."IS_PARTIAL_QTY",SO."AVAIL_QTY_USED",0))                           AS "PO_QUANTITY_REMAINING"
                           ,CASE WHEN SO.IS_ASSEMBLY_COMPONENT  THEN ASM_PO_RECEIVE_BY_DATE
                                 WHEN SO.SOURCE_TYPE = 'OpenSO' THEN FWD_PO_RECEIVE_BY_DATE
                                 WHEN SO.SOURCE_TYPE = 'XFER'   THEN JUST_PO_RECEIVE_BY_DATE
@@ -113,7 +114,6 @@ while (PO_ID <= MAX_PO_ID) {
                                 WHEN SO.SOURCE_TYPE = 'XFER'   THEN OP.OG_QUANTITY_TO_BE_RECEIVED
                                 ELSE NULL
                            END                                                                        AS OG_QUANTITY_TO_BE_RECEIVED
-                          ,("PO_QUANTITY_TO_BE_RECEIVED" - SO."QTY_ORDERED" + IFF(SO."IS_PARTIAL_QTY",SO."AVAIL_QTY_USED",0))                           AS "PO_QUANTITY_REMAINING"
                       FROM DEV.${vj_fsa_schema}."UNASSIGNED_DEMAND" SO
                       LEFT OUTER JOIN DEV.${vj_fsa_schema}."OPEN_PO_TRACKED" OP
                         ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" =  OP."ITEM_ID" 
