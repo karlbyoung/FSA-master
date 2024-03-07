@@ -16,9 +16,9 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.ASSIGNED_DEMAND AS
           , NULL                                                           AS "PO_UPDATE_DATETIME"
           , NULL                                                           AS "PO_ORDER_NUMBER"
           , NULL                                                           AS "PO_QUANTITY_TO_BE_RECEIVED"
+          , NULL                                                           AS "PO_QUANTITY_REMAINING"
           , NULL                                                           AS "PO_RECEIVE_BY_DATE"
           , NULL                                                           AS "OG_QUANTITY_TO_BE_RECEIVED"
-          , NULL                                                           AS "PO_QUANTITY_REMAINING"
     FROM DEV.${vj_fsa_schema}.SEQ_DEMAND_PO
     WHERE PO_INDICATOR != -1
     ORDER BY ITEM_ID, ROW_NO;
