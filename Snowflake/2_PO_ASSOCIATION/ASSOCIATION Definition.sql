@@ -115,20 +115,22 @@ while (PO_ID <= MAX_PO_ID) {
                                 ELSE NULL
                            END                                                                        AS OG_QUANTITY_TO_BE_RECEIVED
                       FROM DEV.${vj_fsa_schema}."UNASSIGNED_DEMAND" SO
+                      LEFT OUTER JOIN DEV.${vj_fsa_schema}."OPEN_PO_TRACKED" OP_ASM
+                        ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" =  OP_ASM."ITEM_ID" 
+                        AND SO."QTY_ORDERED"                 <= OP_ASM."QUANTITY_TO_BE_RECEIVED"
+                        AND OP_ASM.PO_ITEM_TYPE          NOT IN ('Fulfillment Transfer Order')
+                      LEFT OUTER JOIN DEV.${vj_fsa_schema}."OPEN_PO_TRACKED" OP_FWD
+                        ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" =  OP_FWD."ITEM_ID" 
+                        AND SO."QTY_ORDERED"                 <= OP_FWD."QUANTITY_TO_BE_RECEIVED"
+                        AND OP_FWD.PO_ITEM_TYPE          NOT IN ('Assembly Transfer Order')
+                        /* 20230717 - KBY, RFS23-1850 - Select PO's for forward-facing-only locations only  */
+                        AND OP_FWD.IS_FWD_LOCATION                                                  -- TRUE only if a forward-facing location
                       LEFT OUTER JOIN DEV.${vj_fsa_schema}."OPEN_PO_TRACKED" OP
                         ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" =  OP."ITEM_ID" 
                         AND SO."QTY_ORDERED"                 <= OP."QUANTITY_TO_BE_RECEIVED"
                         AND OP.PO_ITEM_TYPE              NOT IN ('Fulfillment Transfer Order','Assembly Transfer Order')
                         /* 20230717 - KBY, RFS23-1850 - Select PO's for forward-facing-only locations only  */
-                      LEFT OUTER JOIN DEV.${vj_fsa_schema}."OPEN_PO_TRACKED" OP_FWD
-                        ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" =  OP_FWD."ITEM_ID" 
-                        AND SO."QTY_ORDERED"                 <= OP_FWD."QUANTITY_TO_BE_RECEIVED"
-                        AND OP_FWD.PO_ITEM_TYPE              IN ('Fulfillment Transfer Order','No Assembly')
-                        AND OP_FWD.IS_FWD_LOCATION                                                  -- TRUE only if a forward-facing location
-                      LEFT OUTER JOIN DEV.${vj_fsa_schema}."OPEN_PO_TRACKED" OP_ASM
-                        ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" =  OP_ASM."ITEM_ID" 
-                        AND SO."QTY_ORDERED"                 <= OP_ASM."QUANTITY_TO_BE_RECEIVED"
-                        AND OP_ASM.PO_ITEM_TYPE              IN ('Assembly Transfer Order','ASSEMBLY')
+                        AND OP.IS_FWD_LOCATION                                                  -- TRUE only if a forward-facing location
                       WHERE 
                         (OP.ORDER_NUMBER IS NOT NULL OR OP_FWD.ORDER_NUMBER IS NOT NULL OR OP_ASM.ORDER_NUMBER IS NOT NULL)
                         AND PO_ID = ` + PO_ID + 
