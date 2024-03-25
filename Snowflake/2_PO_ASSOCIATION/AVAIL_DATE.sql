@@ -60,8 +60,7 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.SEQUENCING_PO_ASSIGN_TMP2 AS
        , CASE 
         	  /* AC 6/7 */
        		  WHEN PO_INDICATOR = '-1' AND PO_INDICATOR_ASSIGN = '1' AND SOURCE_TYPE IN ('OpenSO', 'XFER') 
-       		   THEN IFF(PO_RECEIVE_BY_DATE < :cur_run_date, today."MIN_ADD_5", PO_RECEIVE_BY_DATE)
-               
+       		   THEN IFF(PO_RECEIVE_BY_DATE < :cur_run_date, today."MIN_ADD_5", day_after_po.LAND_DATE)
        		  WHEN PO_INDICATOR_ASSIGN = '1'
                THEN IFF(a.AVAIL_DATE < :cur_run_date, :cur_run_date, AVAIL_DATE)
               WHEN PO_INDICATOR_ASSIGN = '0'
@@ -75,6 +74,10 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.SEQUENCING_PO_ASSIGN_TMP2 AS
   LEFT JOIN "DEV"."BUSINESS_OPERATIONS"."DIM_CALENDAR_BUSINESS_DAYS_SPAN" before_today60 
     ON before_today60.RAW_DATE = DATEADD('day', 60, :cur_run_date)
       AND before_today60.BIZDAYS = -a.FR_PREV_DAYS
+  /* 20240314 - KBY, RFS23-4898 -Update AVAIL_DATE for any PO Supply or TO supply to one calendar day after po receive-by date */
+  LEFT JOIN DEV.BUSINESS_OPERATIONS.DIM_CALENDAR_BUSINESS_DAYS_SPAN day_after_po 
+    ON day_after_po.RAW_DATE = PO_RECEIVE_BY_DATE
+      AND day_after_po.BIZDAYS = 1
 /* AC 6/7 */
   -- TODAY
   LEFT JOIN "DEV"."BUSINESS_OPERATIONS"."DIM_FULFILLMENT_CALENDAR" today ON today."RAW_DATE" = :cur_run_date;
