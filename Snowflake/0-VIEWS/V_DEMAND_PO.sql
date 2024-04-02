@@ -451,17 +451,11 @@ UNION
 , CTE_SOURCES_ASSIGN_PO_FR AS
 (
     SELECT SRC_PO.*,
-        FR.CUSTBODY_FRPRDAYS AS FR_PREV_DAYS
+    /* 20240328 - KBY - Use FRPRDAYS from individual orders, use 7 days as default if not specified  */
+        IFNULL(FR.CUSTBODY_FRPRDAYS,7) AS FR_PREV_DAYS
       FROM CTE_SOURCES_ASSIGN_PO SRC_PO
-      JOIN (
-        SELECT CUSTBODY_FRPRDAYS,count(*) NUM
-            FROM DEV.${vj_ns2_raw_schema}.TRANSACTION
-            WHERE CUSTBODY_FRPRDAYS IS NOT NULL
-            GROUP BY CUSTBODY_FRPRDAYS
-            ORDER BY NUM DESC
-            LIMIT 1
-      ) FR
-
+      JOIN DEV.${vj_ns2_raw_schema}.TRANSACTION FR
+        ON FR.ID = SRC_PO.TRANSACTION_ID
 )
 
  ------------------------------------------------------------------------------------------------------------------------------------------------
