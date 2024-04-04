@@ -22,5 +22,10 @@ SELECT ORDER_NUMBER
       ,A.LOCATION
       /* 20231109 - KBY, RFS23-3534 - Include FR Release Date */
       ,A.FR_RELEASE_DATE
+      ,CASE 
+        WHEN A.PO_INDICATOR = -1 and A.PO_INDICATOR_ASSIGN = 0
+            THEN 'Yes'::TEXT
+        ELSE NULL::TEXT
+        END                 AS FSA_NO_PO        
 FROM DEV.${vj_fsa_schema}.FSA A
 WHERE SOURCE_TYPE = 'OpenSO'
