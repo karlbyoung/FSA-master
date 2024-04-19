@@ -173,6 +173,7 @@ WITH CTE_XFER AS (
         , PO.PURCHASE_ORDER_TRANSACTION_ID  -- 20230710 - KBY, Include Transaction ID's for Assembly as well
         /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
         , POLIA.PO_PRODUCT_LINE
+        , POLI.PO_LINE_ITEM_ID
     FROM DEV.${vj_ns2_schema}.FACT_PURCHASE_ORDER PO
     JOIN DEV.${vj_fsa_schema}.NS_PURCHASE_ORDER_LINE_ITEM_AUX POLIA
         ON PO.PURCHASE_ORDER_TRANSACTION_ID = POLIA.PURCHASE_ORDER_TRANSACTION_ID
@@ -292,7 +293,8 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
         , to_Char(A.NS_LINE_NUMBER) AS NS_LINE_NUMBER
         , TRY_TO_DATE('') AS ORG_DDA
         , CAST(A.TRANSACTION_ID AS VARCHAR(50)) AS TRANSACTION_ID  -- modified 11/10/2022 --   ,'' AS transaction_ID  -- added 8/9/2022 for NS upload
-        , NULL AS line_ID -- added 8/9/2022 for NS upload
+        /* 20240417 - KBY, Provide non-null LINE_ID for XFER orders */
+        , A.TRANSACTION_LINE_ID AS LINE_ID
         --  ,'' AS DI_TYPE_NAME -- added 10/27/2022   
         , NULL AS SO_MULTISITE_ORDER --- added 11/16/2022
         , NULL AS SO_MATERIAL_SUPPORT_STATUS -- added 03/14/2023 Per Emma Greenstein   
@@ -313,6 +315,7 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
         , A.ITEM_ID
         , A.Abs_QUANTITY
         , A.LOCATION_FROM
+        , LINE_ID
         , A.NS_LINE_NUMBER
         , A.TRANSACTION_ID
         , A.CREATE_DATE
@@ -406,7 +409,8 @@ UNION
         /* 20230710 - KBY, Include Transaction ID's for Assembly as well */
         /* , NULL AS TRANSACTION_ID  -- added 8/9/2022 for NS upload */
         , CAST(A.PURCHASE_ORDER_TRANSACTION_ID AS VARCHAR(50)) AS TRANSACTION_ID
-        , NULL AS LINE_ID -- added 8/9/2022 for NS upload
+        /* 20240417 - KBY, Provide non-null LINE_ID for Assembly orders */
+        , A.PO_LINE_ITEM_ID AS LINE_ID
         --,'' AS DI_TYPE_NAME -- added 10/27/2022    
         , NULL AS SO_MULTISITE_ORDER --- added 11/16/2022
         , NULL AS SO_MATERIAL_SUPPORT_STATUS -- added 03/14/2023 Per Emma Greenstein   
@@ -442,6 +446,7 @@ UNION
         , A.QUANITITY_TO_BE_FULFILLED
         , A.COMPONENT_QTY_TO_BE_FULFILLED
         , B.LOCATION
+        , LINE_ID
         , A.NS_LINE_NUMBER
         , A.CREATE_DATE
         /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
