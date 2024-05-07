@@ -6,6 +6,10 @@ SELECT ORDER_NUMBER
       ,CASE
         WHEN A.FSA_COMPLETE = 'F' AND A.FSA_OUTPUT_STATUS = 'UNCHANGED' 
           THEN 'UPDATED'
+      /* 20240419 - KBY, RFS23-5284 If FSA_NO_PO is 'Yes' then change FSA_OUTPUT_STATUS to signal update needed */
+      /*************** DEPLOY DATE ONLY ******************/
+        WHEN A.PO_INDICATOR = -1 and A.PO_INDICATOR_ASSIGN = 0 AND A.FSA_OUTPUT_STATUS = 'UNCHANGED' 
+          THEN 'UPDATED'
         ELSE A.FSA_OUTPUT_STATUS
        END                  AS FSA_OUTPUT_STATUS
       ,A.CREATE_DATE
@@ -22,6 +26,7 @@ SELECT ORDER_NUMBER
       ,A.LOCATION
       /* 20231109 - KBY, RFS23-3534 - Include FR Release Date */
       ,A.FR_RELEASE_DATE
+      /* 20240419 - KBY, RFS23-5281 - Add indicator for when No PO available (and inventory not available) */
       ,CASE 
         WHEN A.PO_INDICATOR = -1 and A.PO_INDICATOR_ASSIGN = 0
             THEN 'Yes'::TEXT
