@@ -1,6 +1,6 @@
 CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.SEQ_DEMAND_PO AS
     WITH CTE_MAX AS (
-      SELECT ZEROIFNULL(MAX(ROW_NO)) PREV_MAX FROM DEV.${vj_fsa_schema}."DEMAND_PREV_ASSIGNED"
+      SELECT ZEROIFNULL(MAX(ROW_NO)) PREV_MAX FROM DEV.${vj_fsa_schema}.DEMAND_PREV_ASSIGNED
     )
     
     ,CTE_NEW AS (
@@ -19,7 +19,14 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.SEQ_DEMAND_PO AS
             ,DPO.PO_SLIPPAGE
             ,DPO.QUANTITY 	                                                                                        AS "QTY_ORDERED"
             /* 20230608 - KBY, HyperCare 123 - Set IS_ALREADY_ASSIGNED when: 1) source type is OpenSO, 2) Location is valid (not blank and not 'Not Yet Assigned') */
-            ,(DPO.SOURCE_TYPE = 'OpenSO' AND (DPO.LOCATION IS NOT NULL AND DPO.LOCATION != 'Not Yet Assigned'))     AS "IS_ALREADY_ASSIGNED"
+            /* 20240516 - KBY, RFS-5213 - Also set IS_ALREADY_ASSIGNED when we have a PO_ORDER_NUMBER from Assembly transfer order */
+            ,CASE
+                WHEN DPO.SOURCE_TYPE = 'OpenSO' AND (DPO.LOCATION IS NOT NULL AND DPO.LOCATION != 'Not Yet Assigned')
+                    THEN TRUE
+                WHEN ASM.ASM_PO_ORDER_NUMBER IS NOT NULL
+                    THEN TRUE
+                ELSE FALSE
+              END AS IS_ALREADY_ASSIGNED
             /* 20230712 - KBY, RFS23-1850 - Include quantities ordered for FSA forward-facing-only locations also */
             ,IFF(NOT DPO.IS_ASSEMBLY_COMPONENT AND NOT IS_ALREADY_ASSIGNED, DPO.QUANTITY, 0)                        AS "QTY_ORDERED_ACCOUNTED_FWD"
             ,IFF(DPO.IS_ASSEMBLY_COMPONENT, DPO.QUANTITY, 0)                                                        AS "QTY_ORDERED_ACCOUNTED_NONFWD"
@@ -39,8 +46,8 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.SEQ_DEMAND_PO AS
             ,PRI.PRIORITY
             ,PRI.SEQ
             ,DPO.SEQUENCING_DDA
-            ,IFF(DPO."IS_ASSEMBLY_COMPONENT", COMPONENT_ITEM_ID, ITEM_ID)                   AS "ITEM_ID_BY_TRANSACTION_TYPE"
-            ,IFF(DPO."IS_ASSEMBLY_COMPONENT", COMPONENT_ITEM, ITEM)                         AS "ITEM_NAME_BY_TRANSACTION_TYPE"
+            ,IFF(DPO.IS_ASSEMBLY_COMPONENT, DPO.COMPONENT_ITEM_ID, DPO.ITEM_ID)                   AS "ITEM_ID_BY_TRANSACTION_TYPE"
+            ,IFF(DPO.IS_ASSEMBLY_COMPONENT, DPO.COMPONENT_ITEM, DPO.ITEM)                         AS "ITEM_NAME_BY_TRANSACTION_TYPE"
             ,DENSE_RANK() OVER (ORDER BY PRI.PRIORITY,
                                         DPO.SEQUENCING_DDA,
                                         PRI.SEQ,
@@ -54,7 +61,10 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.SEQ_DEMAND_PO AS
             ,DPO.FR_PREV_DAYS
             /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
             ,DPO.FSA_COMPLETE
-      FROM DEV.${vj_fsa_schema}."DEMAND_PO" DPO
+      FROM DEV.${vj_fsa_schema}.DEMAND_PO DPO
+      /* 20240516 - KBY, RFS-5213 - Check with already assigned Assembly Transfer orders */
+      LEFT OUTER JOIN DEV.${vj_fsa_schema}.ASM_ASSIGNED_DEMAND ASM
+        ON DPO.PK_ID = ASM.PK_ID
       LEFT OUTER JOIN DEV.${vj_fsa_schema}."DEMAND_PRIORITY" PRI
       ON DPO.FK_ID = PRI.ID
       JOIN CTE_MAX
@@ -77,7 +87,14 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.SEQ_DEMAND_PO AS
             ,DPO.PO_SLIPPAGE
             ,DPO.QUANTITY 	                                                                                        AS "QTY_ORDERED"
             /* 20230608 - KBY, HyperCare 123 - Set IS_ALREADY_ASSIGNED when: 1) source type is OpenSO, 2) Location is valid (not blank and not 'Not Yet Assigned') */
-            ,(DPO.SOURCE_TYPE = 'OpenSO' AND (DPO.LOCATION IS NOT NULL AND DPO.LOCATION != 'Not Yet Assigned'))     AS "IS_ALREADY_ASSIGNED"
+            /* 20240516 - KBY, RFS-5213 - Also set IS_ALREADY_ASSIGNED when we have a PO_ORDER_NUMBER from Assembly transfer order */
+            ,CASE
+                WHEN DPO.SOURCE_TYPE = 'OpenSO' AND (DPO.LOCATION IS NOT NULL AND DPO.LOCATION != 'Not Yet Assigned')
+                    THEN TRUE
+                WHEN ASM.ASM_PO_ORDER_NUMBER IS NOT NULL
+                    THEN TRUE
+                ELSE FALSE
+              END AS IS_ALREADY_ASSIGNED
             /* 20230712 - KBY, RFS23-1850 - Include quantities ordered for FSA forward-facing-only locations also */
             ,IFF(NOT DPO.IS_ASSEMBLY_COMPONENT AND NOT IS_ALREADY_ASSIGNED, DPO.QUANTITY, 0)                        AS "QTY_ORDERED_ACCOUNTED_FWD"
             ,IFF(DPO.IS_ASSEMBLY_COMPONENT, DPO.QUANTITY, 0)                                                        AS "QTY_ORDERED_ACCOUNTED_NONFWD"
@@ -97,8 +114,8 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.SEQ_DEMAND_PO AS
             ,PRI.PRIORITY
             ,PRI.SEQ
             ,DPO.SEQUENCING_DDA
-            ,IFF(DPO."IS_ASSEMBLY_COMPONENT", COMPONENT_ITEM_ID, ITEM_ID)                   AS "ITEM_ID_BY_TRANSACTION_TYPE"
-            ,IFF(DPO."IS_ASSEMBLY_COMPONENT", COMPONENT_ITEM, ITEM)                         AS "ITEM_NAME_BY_TRANSACTION_TYPE"
+            ,IFF(DPO.IS_ASSEMBLY_COMPONENT, DPO.COMPONENT_ITEM_ID, DPO.ITEM_ID)                   AS "ITEM_ID_BY_TRANSACTION_TYPE"
+            ,IFF(DPO.IS_ASSEMBLY_COMPONENT, DPO.COMPONENT_ITEM, DPO.ITEM)                         AS "ITEM_NAME_BY_TRANSACTION_TYPE"
             ,DPO.ROW_NO
             ,DPO.IS_ASSEMBLY_COMPONENT
             ,DPO.PK_ID
@@ -108,7 +125,10 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.SEQ_DEMAND_PO AS
             ,DPO.FR_PREV_DAYS
             /* 20230920 - KBY, RFS23-2696 Include FSA_COMPLETE */
             ,DPO.FSA_COMPLETE
-      FROM DEV.${vj_fsa_schema}."DEMAND_PO" DPO
+      FROM DEV.${vj_fsa_schema}.DEMAND_PO DPO
+      /* 20240516 - KBY, RFS-5213 - Check with already assigned Assembly Transfer orders */
+      LEFT OUTER JOIN DEV.${vj_fsa_schema}.ASM_ASSIGNED_DEMAND ASM
+        ON DPO.PK_ID = ASM.PK_ID
       LEFT OUTER JOIN DEV.${vj_fsa_schema}."DEMAND_PRIORITY" PRI
       ON DPO.FK_ID = PRI.ID
       WHERE DPO.ROW_NO IS NOT NULL 		-- FSA_LOAD_STATUS != 'NEW'
