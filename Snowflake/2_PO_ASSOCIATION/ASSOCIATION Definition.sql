@@ -161,6 +161,7 @@ while (PO_ID <= MAX_PO_ID) {
                                      , OP.PO_ROW_NO
                                      , OP.IS_FWD_LOCATION
                                      , PO_ITEM_TYPE
+                                     , OP.PK_ID -- 20240516 - KBY, RFS-5213 Include PK_ID for matching with Assembly Transfer orders already assigned
                        FROM DEV.${vj_fsa_schema}."OPEN_PO_TRACKED" OP
                        LEFT OUTER JOIN DEV.${vj_fsa_schema}."DEMAND_ASSIGNMENT_TRACKED" SO
                        	 ON  SO."ITEM_ID_BY_TRANSACTION_TYPE" = OP."ITEM_ID" 
