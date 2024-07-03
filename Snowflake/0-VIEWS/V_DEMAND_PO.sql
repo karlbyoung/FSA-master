@@ -53,7 +53,8 @@ WITH CTE_XFER AS (
     JOIN DEV.${vj_ns2_schema}.FACT_TRANSFER_ORDER TORD
         ON TOLI.TRANSFER_ORDER_TRANSACTION_ID = TORD.TRANSFER_ORDER_TRANSACTION_ID
     WHERE
-        TORD.STATUS NOT IN ('Closed', 'Cancelled')
+        /* 20240607 - KBY, RFS23-5881  Do not allow 'Rejected' status as demand */
+        TORD.STATUS NOT IN ('Closed', 'Cancelled', 'Rejected')
         /* 20240112 - KBY, RFS23-3951,3952,3953,3954 Adjust filter of qualifying Transfer orders */
         /*  Do not include 'Other' or 'Inventory Transformation' */
         AND TRANSFER_ORDER_TYPE_MOD in ('Depo Stock Request','Fulfillment','Assembly')

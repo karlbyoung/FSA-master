@@ -118,8 +118,10 @@ $$
               OVER (PARTITION BY "COMPONENT_ITEM_ID" ORDER BY SO."ROW_NO", po."NS_RECEIVE_BY_DATE", po."ORDER_NUMBER")  AS "ASM_PO_QUANTITY_TO_BE_RECEIVED"
           ,FIRST_VALUE(po."NS_RECEIVE_BY_DATE")      
               OVER (PARTITION BY "COMPONENT_ITEM_ID" ORDER BY SO."ROW_NO", po."NS_RECEIVE_BY_DATE", po."ORDER_NUMBER")  AS "ASM_PO_RECEIVE_BY_DATE"
-          ,(po.QUANTITY_TO_BE_RECEIVED - SO."QTY_ORDERED" )                           AS "PO_QUANTITY_REMAINING"
-          ,po.OG_QUANTITY_TO_BE_RECEIVED
+          /* 20240619 - KBY, Bug Fix - Handle first xfer order when multiple available */ 
+          ,(ASM_PO_QUANTITY_TO_BE_RECEIVED - SO."QTY_ORDERED" )                                                         AS "PO_QUANTITY_REMAINING"
+          ,FIRST_VALUE(po.OG_QUANTITY_TO_BE_RECEIVED)      
+              OVER (PARTITION BY "COMPONENT_ITEM_ID" ORDER BY SO."ROW_NO", po."NS_RECEIVE_BY_DATE", po."ORDER_NUMBER")  AS "OG_QUANTITY_TO_BE_RECEIVED"
         FROM DEV.${vj_fsa_schema}.ASM_UNASSIGNED so
         JOIN DEV.${vj_fsa_schema}.ASM_OPEN_PO_TRACKED po
           ON SO.COMPONENT_ITEM_ID = PO.ITEM_ID
