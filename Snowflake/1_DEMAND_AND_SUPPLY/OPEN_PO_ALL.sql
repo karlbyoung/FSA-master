@@ -26,7 +26,7 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.OPEN_PO_ALL AS (
         /* 20230804 - KBY, RSF23-1861 - Convert ID's from FLOAT to NUMBER */
         , UNIQUE_KEY::NUMBER                                                      AS UNIQUE_KEY
         , FLOOR(QUANITITY_TO_BE_RECEIVED)::NUMBER                                 AS QUANTITY_TO_BE_RECEIVED
-    FROM DEV.${vj_fsa_schema}.V_OPENPO 
+    FROM DEV.${vj_fsa_schema}.OPEN_PO_SUPPLY
     LEFT JOIN DEV.BUSINESS_OPERATIONS.DIM_FULFILLMENT_CALENDAR CAL
            ON CAL.RAW_DATE = CURRENT_DATE()
     WHERE YEAR(RECEIVE_BY_DATE) >= 2022
@@ -55,7 +55,7 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.OPEN_PO_ALL AS (
             WHEN 'Fulfillment' THEN 'Fulfillment Transfer Order'
             WHEN 'Assembly' THEN 'Assembly Transfer Order'
           END                                                                           AS PO_ITEM_TYPE
-      , ITEM_ID::NUMBER                                                                 AS ITEM_ID
+        , ITEM_ID::NUMBER                                                                 AS ITEM_ID
         , ITEM   
         , ITEM_ID_C
         , ITEM_C
@@ -73,7 +73,7 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.OPEN_PO_ALL AS (
          , REQUESTED_DDA::DATE                                                          AS NS_RECEIVE_BY_DATE
         , UNIQUE_KEY::NUMBER                                                            AS UNIQUE_KEY
         , FLOOR(QUANTITY_COMMITTED-QUANTITY_FULFILLED)::NUMBER                        AS QUANTITY_TO_BE_RECEIVED
-    FROM DEV.${vj_fsa_schema}.V_XFER_SUPPLY 
+    FROM DEV.${vj_fsa_schema}.OPEN_TORD_SUPPLY 
     LEFT JOIN DEV.BUSINESS_OPERATIONS.DIM_FULFILLMENT_CALENDAR CAL
            ON CAL.RAW_DATE = CURRENT_DATE()
     WHERE YEAR(RECEIVE_BY_DATE) >= 2022

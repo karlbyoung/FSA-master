@@ -9,7 +9,7 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.DEMAND_PO_ALL AS
           WHEN TRANSACTION_TYPE = 'Sample (aka Internal fulfillment)' THEN 'Sample'
           ELSE TRANSACTION_TYPE
         END AS TRANSACTION_TYPE
-      FROM DEV.${vj_fsa_schema}."V_DEMAND_PO"
+      FROM DEV.${vj_fsa_schema}.RAW_DEMAND_PO
       WHERE "ORDER_NUMBER" NOT IN ('Planning%')
       AND IFNULL("SO_MATERIAL_SUPPORT_STATUS", '') NOT IN (
            'M/Y: Complete - (23-24)'
