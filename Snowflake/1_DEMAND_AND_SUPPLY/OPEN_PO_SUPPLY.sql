@@ -16,13 +16,13 @@ SELECT DISTINCT
     ,po.PURCHASE_ORDER_TRANSACTION_ID
     ,po.status 
     ,po.LOCATION
-    ,polia.RECEIVE_BY_DATE   
+    ,IFNULL(polia.RECEIVE_BY_DATE,CURRENT_DATE()) RECEIVE_BY_DATE
     ,polia.UNIQUE_KEY    
     ,polia.QUANTITY 
     ,QUANTITY_RECEIVED
-    /* 20230626 - KBY, HyperCare Ref #134 - set QUANITITY_TO_BE_RECEIVED[sic] based on 100% of QUANTITY */
-    ,polia.QUANTITY-ZEROIFNULL(QUANTITY_RECEIVED) as QUANITITY_TO_BE_RECEIVED
-    ,(polia.QUANTITY*.9) as QUANITITY_TO_BE_RECEIVED_90
+    /* 20230626 - KBY, HyperCare Ref #134 - set QUANTITY_TO_BE_RECEIVED based on 100% of QUANTITY */
+    ,polia.QUANTITY-ZEROIFNULL(QUANTITY_RECEIVED) as QUANTITY_TO_BE_RECEIVED
+    ,(polia.QUANTITY*.9) as QUANTITY_TO_BE_RECEIVED_90
     ,i.TYPE_NAME AS "ITEM_TYPE"
     ,i_component.TYPE_NAME AS "COMPONENT_TYPE"
     /* 20230912 - KBY, RFS3 - include Product Line column for Sample order info */
@@ -55,4 +55,4 @@ WHERE polia._POLI_IS_RECEIVED = 'FALSE'
        and ftl.CLASS_NAME not in ('Other')
        /* 20230816 - KBY, RFS23-2441 Exclude PO marked as closed */
        and poli.IS_CLOSED = 'F'
-ORDER BY item_Id, polia.RECEIVE_BY_DATE
+ORDER BY item_Id, RECEIVE_BY_DATE

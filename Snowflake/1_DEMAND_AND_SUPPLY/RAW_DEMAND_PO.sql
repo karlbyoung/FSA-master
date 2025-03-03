@@ -35,6 +35,8 @@ WITH CTE_XFER AS (
         , QUANTITY_COMMITTED
         , QUANTITY_PACKED
         , QUANTITY_PICKED
+        , QUANTITY_REMAINING
+        , SUPPLY_OR_DEMAND
         , TRANSACTION_LINE_ID
         , NS_LINE_NUMBER
         , IS_LINE_DELETED
@@ -43,8 +45,8 @@ WITH CTE_XFER AS (
     FROM DEV.${vj_fsa_schema}.OPEN_TORD_ALL
     WHERE
         TRANSFER_ORDER_TYPE_MOD in ('Depo Stock Request','Fulfillment','Assembly') /*  Do not include 'Other' or 'Inventory Transformation' */
-        AND IFNULL(QUANTITY_FULFILLED, 0) < ABS(QUANTITY)
-        AND IFNULL(QUANTITY_COMMITTED, 0) = 0
+        /* 20250210 - KBY, RFS23-7765 - Act as demand depending on status and quantity remaining */
+        AND SUPPLY_OR_DEMAND = 'Demand'
 )
 
 ----- 2. OPEN SALES ORDER JOINT Purchase Order ------
@@ -269,7 +271,8 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
         , A.ITEM_ID
         , NULL AS COMPONENT_ITEM_ID 
         , NULL AS COMPONENT_ITEM
-        , A.ABS_QUANTITY AS QTY_ORDERED --- 0 AS QTY_ORDERED -- changed on 11/10/2022      
+        /* 20250210 - KBY, RFS23-7765 - Act as supply depending on quantity remaining */
+        , A.QUANTITY_REMAINING AS QTY_ORDERED
         , NULL AS COMPONENT_QTY_ORDERED
         , A.LOCATION_FROM AS LOCATION
         , 1 AS PRIORITY_LEVEl
@@ -297,7 +300,7 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
         , A.TRANSACTION_TYPE
         , A.ITEM
         , A.ITEM_ID
-        , A.ABS_QUANTITY
+        , A.QUANTITY_REMAINING
         , A.LOCATION_FROM
         , LINE_ID
         , A.NS_LINE_NUMBER
@@ -407,7 +410,7 @@ UNION
         /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
         , A.PO_PRODUCT_LINE
     FROM CTE_PO_DETAIL A 
-    INNER JOIN DEV.${vj_fsa_schema}.V_OPENPO B
+    INNER JOIN DEV.${vj_fsa_schema}.OPEN_PO_SUPPLY B
         ON A.ORDER_NUMBER = B.ORDER_NUMBER
         AND A.ASSEMBLY_ELSE_ITEM_ID = B.ASSEMBLY_ELSE_ITEM_ID
     WHERE 

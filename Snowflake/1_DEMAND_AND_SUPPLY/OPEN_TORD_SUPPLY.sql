@@ -36,6 +36,8 @@ WITH cte_xfer AS (
         , QUANTITY_COMMITTED
         , QUANTITY_PACKED
         , QUANTITY_PICKED
+        , QUANTITY_REMAINING
+        , SUPPLY_OR_DEMAND
         , TRANSACTION_LINE_ID
         , NS_LINE_NUMBER
         , TRANSFER_ORDER_TYPE_MOD
@@ -43,8 +45,8 @@ WITH cte_xfer AS (
     FROM DEV.${vj_fsa_schema}.OPEN_TORD_ALL
     WHERE
         TRANSFER_ORDER_TYPE_MOD in ('Fulfillment','Assembly')
-        AND IFNULL(QUANTITY_FULFILLED, 0) < ABS_QUANTITY
-        AND IFNULL(QUANTITY_COMMITTED, 0) > 0
+        /* 20250210 - KBY, RFS23-7765 - Act as supply when 'Pending Fulfillment' or 'Pending Receipt' */
+        AND SUPPLY_OR_DEMAND = 'Supply'
 )
 , xfer_composite as (
     SELECT cte_xfer.*
