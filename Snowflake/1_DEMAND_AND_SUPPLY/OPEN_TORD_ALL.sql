@@ -1,0 +1,77 @@
+/* Create table representing all open Transfer Orders */
+CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.OPEN_TORD_ALL as
+WITH RAW_CTE_XFER AS (
+    SELECT ABS(TOLI.QUANTITY) AS ABS_QUANTITY
+        , TOLI.TRANSFER_ORDER_TRANSACTION_ID AS TRANSACTION_ID
+        , IFNULL(TOLI.QUANTITY_FULFILLED, 0) AS QUANTITY_FULFILLED
+        , TORD.ORDER_NUMBER
+        , TORD.TRANSFER_ORDER_TRANSACTION_ID
+        , TORD.STATUS
+        , TORD.CREATE_DATE
+        , TORD.TRANSACTION_DATE
+        , TORD.LOCATION_FROM
+        , TORD.LOCATION_TO
+        , TORD.MEMO
+        , TORD.IS_DELETED
+        , TORD.IS_SERVICE_PO
+        , TORD.DDA_OVERRIDE_DATE
+        , TORD.TRANSACTION_TYPE AS HEADER_TRANSACTION_TYPE
+        , TORD.TRANSFER_ORDER_TYPE_ID
+        , TORD.TRANSFER_ORDER_TYPE
+        , TORD.REQUESTED_DDA
+        , TOLI.UNIQUE_KEY
+        , TOLI.ITEM
+        , TOLI.ITEM_ID
+        , TOLI.ITEM_DISPLAY_NAME    
+        , TOLI.QUANTITY
+        , TOLI.DDA TOLI_DDA
+        , TOLI.DDB
+        , TOLI.TRANSACTION_TYPE
+        , TOLI.IS_CLOSED
+        , TOLI.TRANSACTION_LINE_TYPE
+        , TOLI.DATE_CREATED
+        , TOLI.DATE_LAST_MODIFIED
+        , TOLI.DATE_DELETED
+        , IFNULL(TOLI.QUANTITY_COMMITTED, 0) AS QUANTITY_COMMITTED
+        , TOLI.QUANTITY_PACKED
+        , TOLI.QUANTITY_PICKED
+        , IFNULL(TL_RECV.QUANTITYSHIPRECV, 0) as QUANTITY_RECEIVED
+        , ABS_QUANTITY - QUANTITY_RECEIVED AS QUANTITY_REMAINING
+        , TOLI.TRANSACTION_LINE_ID
+        , TOLI.NS_LINE_NUMBER
+        , TOLI.IS_DELETED IS_LINE_DELETED
+        /* 20240117 - KBY, RFS23-3950 Temporary CASE statement until TRANSFER_ORDER_TYPES are filled in */
+        , CASE
+            WHEN TORD.TRANSFER_ORDER_TYPE IS NULL AND TORD.LOCATION_TO ILIKE '%depo%' THEN 'Depo Stock Request'
+            ELSE TORD.TRANSFER_ORDER_TYPE
+          END AS TRANSFER_ORDER_TYPE_MOD
+        /* 20240216 - KBY, RFS23-3951,3952 Adjust DDA of qualifying Transfer orders */
+        , CASE
+            WHEN TRANSFER_ORDER_TYPE_MOD in ('Fulfillment','Assembly') 
+              THEN TORD.REQUESTED_DDA::DATE
+            ELSE TORD.DDA_OVERRIDE_DATE::DATE
+          END AS DDA
+        /* 20250210 - KBY, RFS23-7765 - Determine Supply/Demand by Status, and quantity remaining */
+        , CASE 
+              WHEN TRANSFER_ORDER_TYPE_MOD in ('Fulfillment','Assembly') AND STATUS in ('Pending Fulfillment','Pending Receipt') THEN 'Supply'
+              WHEN TRANSFER_ORDER_TYPE_MOD in ('Fulfillment','Assembly') AND STATUS in ('Pending Approval') THEN 'Demand'
+              WHEN TRANSFER_ORDER_TYPE_MOD in ('Depo Stock Request','Fulfillment','Assembly') AND STATUS != 'Received'
+                  AND IFNULL(TOLI.QUANTITY_FULFILLED, 0) < ABS_QUANTITY AND IFNULL(TOLI.QUANTITY_COMMITTED, 0) = 0 
+                THEN 'Demand'
+              ELSE '----'
+          END as supply_or_demand
+    FROM DEV.${vj_ns2_schema}.FACT_TRANSFER_ORDER_LINE_ITEM TOLI
+    JOIN DEV.${vj_ns2_schema}.FACT_TRANSFER_ORDER TORD
+        ON TOLI.TRANSFER_ORDER_TRANSACTION_ID = TORD.TRANSFER_ORDER_TRANSACTION_ID
+    LEFT JOIN DEV.${vj_ns2_raw_schema}.TRANSACTIONLINE AS TRANS_LINE 
+        ON TOLI.UNIQUE_KEY = TRANS_LINE.UNIQUEKEY
+        AND TRANS_LINE.TRANSACTIONLINETYPE 	= 'ITEM' 
+    LEFT JOIN DEV.${vj_ns2_raw_schema}.TRANSACTIONLINE AS TL_RECV 
+        ON TOLI.TRANSFER_ORDER_TRANSACTION_ID 		= TL_RECV.TRANSACTION
+        AND TRANS_LINE.ID = TL_RECV.TRANSFERORDERITEMLINEID
+        AND TL_RECV.TRANSACTIONLINETYPE 				= 'RECEIVING'
+    WHERE
+        TORD.STATUS NOT IN ('Closed', 'Cancelled', 'Rejected')
+        AND TOLI.IS_CLOSED = 'F'
+)
+select * from raw_cte_xfer

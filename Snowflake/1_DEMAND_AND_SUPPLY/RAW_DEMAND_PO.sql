@@ -1,67 +1,52 @@
+CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.RAW_DEMAND_PO as
 ------ 1. TRANSFER ORDER ------
-
 WITH CTE_XFER AS (
-    SELECT ABS(TOLI.QUANTITY) AS Abs_QUANTITY
-        , TOLI.TRANSFER_ORDER_TRANSACTION_ID AS TRANSACTION_ID
-        , IFNULL(TOLI.QUANTITY_FULFILLED, 0) AS QUANTITY_FULFILLED                                   
-        , TORD.ORDER_NUMBER
-        , TORD.TRANSFER_ORDER_TRANSACTION_ID
-        , TORD.STATUS
-        , TORD.CREATE_DATE
-        , TORD.TRANSACTION_DATE
-        , TORD.LOCATION_FROM
-        , TORD.LOCATION_TO
-        , TORD.MEMO
-        , TORD.IS_DELETED
-        , TORD.IS_SERVICE_PO
-        , TORD.DDA_OVERRIDE_DATE
-        , TORD.TRANSACTION_TYPE AS HEADER_TRANSACTION_TYPE
-        , TORD.TRANSFER_ORDER_TYPE_ID
-        , TORD.TRANSFER_ORDER_TYPE
-        , TORD.REQUESTED_DDA
-        , TOLI.UNIQUE_KEY
-        , TOLI.ITEM
-        , TOLI.ITEM_ID
-        , TOLI.ITEM_DISPLAY_NAME
-        , TOLI.QUANTITY
-        , TOLI.DDA TOLI_DDA
-        , TOLI.DDB
-        , TOLI.TRANSACTION_TYPE
-        , TOLI.IS_CLOSED
-        , TOLI.TRANSACTION_LINE_TYPE
-        , TOLI.DATE_CREATED
-        , TOLI.DATE_LAST_MODIFIED
-        , TOLI.DATE_DELETED
-        , TOLI.QUANTITY_COMMITTED
-        , TOLI.QUANTITY_PACKED
-        , TOLI.QUANTITY_PICKED
-        , TOLI.TRANSACTION_LINE_ID
-        , TOLI.NS_LINE_NUMBER
-        , TOLI.IS_DELETED IS_DELETED_2
-        /* 20240117 - KBY, RFS23-3950 Temporary CASE statement until TRANSFER_ORDER_TYPES are filled in */
-        , CASE
-            WHEN TORD.TRANSFER_ORDER_TYPE IS NULL AND TORD.LOCATION_TO ILIKE '%depo%' THEN 'Depo Stock Request'
-            ELSE TORD.TRANSFER_ORDER_TYPE
-          END AS TRANSFER_ORDER_TYPE_MOD
-        /* 20240216 - KBY, RFS23-3951,3952 Adjust DDA of qualifying Transfer orders */
-        , CASE
-            WHEN TRANSFER_ORDER_TYPE_MOD in ('Fulfillment','Assembly') 
-              THEN TORD.REQUESTED_DDA::DATE
-            ELSE TORD.DDA_OVERRIDE_DATE::DATE
-          END AS DDA
-    FROM DEV.${vj_ns2_schema}.FACT_TRANSFER_ORDER_LINE_ITEM TOLI
-    JOIN DEV.${vj_ns2_schema}.FACT_TRANSFER_ORDER TORD
-        ON TOLI.TRANSFER_ORDER_TRANSACTION_ID = TORD.TRANSFER_ORDER_TRANSACTION_ID
+    SELECT ABS_QUANTITY
+        , TRANSACTION_ID
+        , QUANTITY_FULFILLED                                   
+        , ORDER_NUMBER
+        , TRANSFER_ORDER_TRANSACTION_ID
+        , STATUS
+        , CREATE_DATE
+        , TRANSACTION_DATE
+        , LOCATION_FROM
+        , LOCATION_TO
+        , MEMO
+        , IS_DELETED
+        , IS_SERVICE_PO
+        , DDA_OVERRIDE_DATE
+        , HEADER_TRANSACTION_TYPE
+        , TRANSFER_ORDER_TYPE_ID
+        , TRANSFER_ORDER_TYPE
+        , REQUESTED_DDA
+        , UNIQUE_KEY
+        , ITEM
+        , ITEM_ID
+        , ITEM_DISPLAY_NAME
+        , QUANTITY
+        , TOLI_DDA
+        , DDB
+        , TRANSACTION_TYPE
+        , IS_CLOSED
+        , TRANSACTION_LINE_TYPE
+        , DATE_CREATED
+        , DATE_LAST_MODIFIED
+        , DATE_DELETED
+        , QUANTITY_COMMITTED
+        , QUANTITY_PACKED
+        , QUANTITY_PICKED
+        , QUANTITY_REMAINING
+        , SUPPLY_OR_DEMAND
+        , TRANSACTION_LINE_ID
+        , NS_LINE_NUMBER
+        , IS_LINE_DELETED
+        , TRANSFER_ORDER_TYPE_MOD
+        , DDA
+    FROM DEV.${vj_fsa_schema}.OPEN_TORD_ALL
     WHERE
-        /* 20240607 - KBY, RFS23-5881  Do not allow 'Rejected' status as demand */
-        TORD.STATUS NOT IN ('Closed', 'Cancelled', 'Rejected')
-        /* 20240112 - KBY, RFS23-3951,3952,3953,3954 Adjust filter of qualifying Transfer orders */
-        /*  Do not include 'Other' or 'Inventory Transformation' */
-        AND TRANSFER_ORDER_TYPE_MOD in ('Depo Stock Request','Fulfillment','Assembly')
-        AND IFNULL(TOLI.QUANTITY_FULFILLED, 0) < ABS(TOLI.QUANTITY)
-        AND IFNULL(TOLI.QUANTITY_COMMITTED, 0) = 0
-        /* 20231026 - KBY, RFS23-3351 Only include lines in Transfer orders not marked as closed */
-        AND TOLI.IS_CLOSED = 'F'
+        TRANSFER_ORDER_TYPE_MOD in ('Depo Stock Request','Fulfillment','Assembly') /*  Do not include 'Other' or 'Inventory Transformation' */
+        /* 20250210 - KBY, RFS23-7765 - Act as demand depending on status and quantity remaining */
+        AND SUPPLY_OR_DEMAND = 'Demand'
 )
 
 ----- 2. OPEN SALES ORDER JOINT Purchase Order ------
@@ -250,7 +235,6 @@ Recommendation: Use Business Operations maintained DEV.${vj_fsa_schema}.NS_ITEMS
 I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks like it’s made up of some item configs provided by LSC, and some warehouse “throughput” configs. I’m not sure if the nature of that data is stable or dynamic. To the extent that any of these configs are stable attributes of the items, they potentially can get added AS attributes directly into NETSUITE2 (using either existing or new fields on Item records), and then reflected in DEV.${vj_ns2_schema}.DIM_ITEM
 =============
 |*/
-
 /* 20250716 KBY - removed CARTON information from FSA as V_DIM_CARTONS_LOOSE no longer available 
 , CTE_CARTON AS (
     SELECT CAST(FULL_NAME AS varchar(50)) AS ITEM
@@ -271,7 +255,7 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
         , LSC_L_W_H
     FROM DEV.${vj_fsa_schema}.V_DIM_CARTONS_LOOSE
 )   
-*/  
+*/    
  ------------------------------------------------------------------------------------------------------------------------------------------------
  --            combine  the results from 3 sources ( xfer order/ open sales / PO/ assembly --
 ------------------------------------------------------------------------------------------------------------------------------------------------    
@@ -288,7 +272,8 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
         , A.ITEM_ID
         , NULL AS COMPONENT_ITEM_ID 
         , NULL AS COMPONENT_ITEM
-        , A.Abs_QUANTITY AS QTY_ORDERED --- 0 AS QTY_ORDERED -- changed on 11/10/2022      
+        /* 20250210 - KBY, RFS23-7765 - Act as supply depending on quantity remaining */
+        , A.QUANTITY_REMAINING AS QTY_ORDERED
         , NULL AS COMPONENT_QTY_ORDERED
         , A.LOCATION_FROM AS LOCATION
         , 1 AS PRIORITY_LEVEl
@@ -316,7 +301,7 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
         , A.TRANSACTION_TYPE
         , A.ITEM
         , A.ITEM_ID
-        , A.Abs_QUANTITY
+        , A.QUANTITY_REMAINING
         , A.LOCATION_FROM
         , LINE_ID
         , A.NS_LINE_NUMBER
@@ -426,7 +411,7 @@ UNION
         /* 20230912 - KBY, RFS23-2652 - include Product Line column for Sample order info */
         , A.PO_PRODUCT_LINE
     FROM CTE_PO_DETAIL A 
-    INNER JOIN DEV.${vj_fsa_schema}.V_OPENPO B
+    INNER JOIN DEV.${vj_fsa_schema}.OPEN_PO_SUPPLY B
         ON A.ORDER_NUMBER = B.ORDER_NUMBER
         AND A.ASSEMBLY_ELSE_ITEM_ID = B.ASSEMBLY_ELSE_ITEM_ID
     WHERE 
@@ -482,6 +467,7 @@ UNION
          , DI.TYPE_NAME                                                     AS TYPE_NAME
     /* 20250716 KBY - removed CARTON information from FSA as V_DIM_CARTONS_LOOSE no longer available  */
          , CAST(0 AS varchar)                                     AS NUMBER_IN_CARTON
+--         , CAST(C.MASTERQTY AS varchar)                                     AS NUMBER_IN_CARTON
     /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
     FROM CTE_SOURCES_ASSIGN_PO_FR A
     LEFT OUTER JOIN DEV.${vj_ns2_schema}.DIM_ITEM DI 
@@ -491,10 +477,10 @@ UNION
         ON IFNULL(A.COMPONENT_ITEM_ID, A.ITEM_ID) = B.ITEM_ID 
     LEFT OUTER JOIN CTE_INVENTORY_FWD INV_FWD
         ON IFNULL(A.COMPONENT_ITEM_ID, A.ITEM_ID) = INV_FWD.ITEM_ID 
-/* 20250716 KBY - removed CARTON information from FSA as V_DIM_CARTONS_LOOSE no longer available 
+    /* 20250716 KBY - removed CARTON information from FSA as V_DIM_CARTONS_LOOSE no longer available  
     LEFT OUTER JOIN CTE_CARTON C
         ON IFNULL(A.COMPONENT_ITEM_ID, A.ITEM_ID) = C.ITEM_ID     
-*/
+    */
     WHERE CAST(A.ORDER_NUMBER AS varchar) NOT LIKE ('%Planning%')
     AND IFNULL(A.COMPONENT_ITEM::TEXT, '0') NOT IN (SELECT COMPONENT_ITEM::TEXT FROM DEV.${vj_fsa_schema}.COMPONENT_ITEMS_TO_EXCLUDE)
     /* 20230614 - KBY, HyperCare Ref #129 - also exclude ITEMs that appear on COMPONENT_ITEM exclusion list */
