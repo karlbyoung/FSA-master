@@ -231,11 +231,12 @@ Recommendation: Use Business Operations maintained DEV.${vj_fsa_schema}.NS_ITEMS
  
 -- Throughput -- 10/31/2022 
 -- need to qa for dups
-, CTE_CARTON AS (
  /*||JB.2023.03.29|
 I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks like it’s made up of some item configs provided by LSC, and some warehouse “throughput” configs. I’m not sure if the nature of that data is stable or dynamic. To the extent that any of these configs are stable attributes of the items, they potentially can get added AS attributes directly into NETSUITE2 (using either existing or new fields on Item records), and then reflected in DEV.${vj_ns2_schema}.DIM_ITEM
 =============
 |*/
+/* 20250716 KBY - removed CARTON information from FSA as V_DIM_CARTONS_LOOSE no longer available 
+, CTE_CARTON AS (
     SELECT CAST(FULL_NAME AS varchar(50)) AS ITEM
         , ITEM_ID
         , TYPE_NAME
@@ -254,7 +255,7 @@ I’m not familiar with the data in V_DIM_CARTONS_LOOSE. At a glance, it looks l
         , LSC_L_W_H
     FROM DEV.${vj_fsa_schema}.V_DIM_CARTONS_LOOSE
 )   
-    
+*/    
  ------------------------------------------------------------------------------------------------------------------------------------------------
  --            combine  the results from 3 sources ( xfer order/ open sales / PO/ assembly --
 ------------------------------------------------------------------------------------------------------------------------------------------------    
@@ -464,7 +465,9 @@ UNION
                 ELSE 'BackOrder' 
             END                                                             AS BO_STATUS
          , DI.TYPE_NAME                                                     AS TYPE_NAME
-         , CAST(C.MASTERQTY AS varchar)                                     AS NUMBER_IN_CARTON
+    /* 20250716 KBY - removed CARTON information from FSA as V_DIM_CARTONS_LOOSE no longer available  */
+         , CAST(0 AS varchar)                                     AS NUMBER_IN_CARTON
+--         , CAST(C.MASTERQTY AS varchar)                                     AS NUMBER_IN_CARTON
     /* 20230728 - KBY, RSF23-2033 - Include global parameter FR_PREV_DAYS for adjustment */
     FROM CTE_SOURCES_ASSIGN_PO_FR A
     LEFT OUTER JOIN DEV.${vj_ns2_schema}.DIM_ITEM DI 
@@ -474,8 +477,10 @@ UNION
         ON IFNULL(A.COMPONENT_ITEM_ID, A.ITEM_ID) = B.ITEM_ID 
     LEFT OUTER JOIN CTE_INVENTORY_FWD INV_FWD
         ON IFNULL(A.COMPONENT_ITEM_ID, A.ITEM_ID) = INV_FWD.ITEM_ID 
+    /* 20250716 KBY - removed CARTON information from FSA as V_DIM_CARTONS_LOOSE no longer available  
     LEFT OUTER JOIN CTE_CARTON C
         ON IFNULL(A.COMPONENT_ITEM_ID, A.ITEM_ID) = C.ITEM_ID     
+    */
     WHERE CAST(A.ORDER_NUMBER AS varchar) NOT LIKE ('%Planning%')
     AND IFNULL(A.COMPONENT_ITEM::TEXT, '0') NOT IN (SELECT COMPONENT_ITEM::TEXT FROM DEV.${vj_fsa_schema}.COMPONENT_ITEMS_TO_EXCLUDE)
     /* 20230614 - KBY, HyperCare Ref #129 - also exclude ITEMs that appear on COMPONENT_ITEM exclusion list */

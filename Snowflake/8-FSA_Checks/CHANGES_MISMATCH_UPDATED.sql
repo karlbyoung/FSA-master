@@ -14,10 +14,24 @@ WITH cur_fsa AS
   SELECT * 
   FROM table(${vj_fsa_db}.${vj_fsa_schema}.latest_fsa(-1))
 )
+, max_insert AS
+(
+  SELECT max(fsa_insert_date) latest_date
+  FROM ${vj_fsa_db}.${vj_fsa_schema}.fsa_hist
+)
+, prev_fsa_dates AS
+(
+  select distinct pk_id,fsa_insert_date,lag(fsa_insert_date) over (partition by pk_id order by fsa_insert_date) prev_insert
+  from ${vj_fsa_db}.${vj_fsa_schema}.fsa_hist
+)
 , prev_fsa AS
 (
-  SELECT * 
-  FROM table(${vj_fsa_db}.${vj_fsa_schema}.latest_fsa(-2))
+  SELECT t1.* 
+  FROM ${vj_fsa_db}.${vj_fsa_schema}.fsa_hist t1
+  JOIN prev_fsa_dates t2
+    on t1.pk_id = t2.pk_id
+    and t1.fsa_insert_date = t2.prev_insert
+  WHERE t2.fsa_insert_date = (select latest_date from max_insert)
 )
 , detect_changes AS
 (

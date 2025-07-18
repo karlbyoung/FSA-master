@@ -56,13 +56,13 @@ WITH RAW_CTE_XFER AS (
               WHEN TRANSFER_ORDER_TYPE_MOD in ('Fulfillment','Assembly') AND STATUS in ('Pending Fulfillment','Pending Receipt') THEN 'Supply'
               WHEN TRANSFER_ORDER_TYPE_MOD in ('Fulfillment','Assembly') AND STATUS in ('Pending Approval') THEN 'Demand'
               WHEN TRANSFER_ORDER_TYPE_MOD in ('Depo Stock Request','Fulfillment','Assembly') AND STATUS != 'Received'
-                  AND QUANTITY_FULFILLED < ABS_QUANTITY AND QUANTITY_COMMITTED = 0 
+                  AND IFNULL(TOLI.QUANTITY_FULFILLED, 0) < ABS_QUANTITY AND IFNULL(TOLI.QUANTITY_COMMITTED, 0) = 0 
                 THEN 'Demand'
               ELSE '----'
           END as supply_or_demand
     FROM DEV.${vj_ns2_schema}.FACT_TRANSFER_ORDER_LINE_ITEM TOLI
     JOIN DEV.${vj_ns2_schema}.FACT_TRANSFER_ORDER TORD
-        ON TOLI.TRANSFER_ORDER_TRANSACTION_ID = TORD.TRANSFER_ORDER_TRANSACTION_ID``
+        ON TOLI.TRANSFER_ORDER_TRANSACTION_ID = TORD.TRANSFER_ORDER_TRANSACTION_ID
     LEFT JOIN DEV.${vj_ns2_raw_schema}.TRANSACTIONLINE AS TRANS_LINE 
         ON TOLI.UNIQUE_KEY = TRANS_LINE.UNIQUEKEY
         AND TRANS_LINE.TRANSACTIONLINETYPE 	= 'ITEM' 
