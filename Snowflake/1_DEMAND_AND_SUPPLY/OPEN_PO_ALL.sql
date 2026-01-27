@@ -37,6 +37,8 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.OPEN_PO_ALL AS (
           ,'BR Printers CN'
           ,'BR Printers KY'
           ,'BR Printers SJ'
+          /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
+          ,'BR Printers Hebron'
           ,'hand2mind'
           ,'JPS Graphics'
           ,'LSC Airwest'
@@ -84,6 +86,8 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.OPEN_PO_ALL AS (
           ,'BR Printers CN'
           ,'BR Printers KY'
           ,'BR Printers SJ'
+          /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
+          ,'BR Printers Hebron'
           ,'hand2mind'
           ,'JPS Graphics'
           ,'LSC Airwest'

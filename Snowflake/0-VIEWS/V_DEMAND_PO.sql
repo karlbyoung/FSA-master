@@ -138,7 +138,8 @@ WITH CTE_XFER AS (
     LEFT OUTER JOIN DEV.${vj_ns2_schema}.FACT_FULFILLMENT_SALES_ORDER FFSO
         ON A.SO_TRANSACTION_ID = FFSO.FULFILLMENT_SALES_ORDER_TRANSACTION_ID
      WHERE  
-        (A.SOLI_LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
+        /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
+        (A.SOLI_LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN','BR Printers Hebron',
                                'LSC Owensville','LSC Airwest','LSC Linn',
                                'Barrett Distribution','hand2mind','JPS Graphics',
                                'Not Yet Assigned'
@@ -210,7 +211,8 @@ Recommendation: Use Business Operations maintained DEV.${vj_fsa_schema}.NS_ITEMS
     JOIN DEV.${vj_ns2_schema}.DIM_ITEM I
         ON NSIAL.ITEM_ID = I.ITEM_ID
     WHERE 1=1
-        AND NSIAL.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
+        /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
+        AND NSIAL.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN','BR Printers Hebron',
                                'LSC Owensville','LSC Airwest','LSC Linn',
                                'Barrett Distribution','hand2mind','JPS Graphics',
                                'Not Yet Assigned')
@@ -428,8 +430,8 @@ UNION
         ON A.ORDER_NUMBER = B.ORDER_NUMBER
         AND A.ASSEMBLY_ELSE_ITEM_ID = B.ASSEMBLY_ELSE_ITEM_ID
     WHERE 
-        -- B.LOCATION IN ('hand2mind', 'BR Printers', 'JPS Graphics', 'LSC Owensville', 'Wards VWR', 'Not Yet Assigned')
-        B.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
+        /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
+        B.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN','BR Printers Hebron',
                                'LSC Owensville','LSC Airwest','LSC Linn',
                                'Barrett Distribution','hand2mind','JPS Graphics',
                                'Not Yet Assigned'
