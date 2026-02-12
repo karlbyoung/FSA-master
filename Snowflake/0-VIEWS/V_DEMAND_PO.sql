@@ -139,9 +139,10 @@ WITH CTE_XFER AS (
         ON A.SO_TRANSACTION_ID = FFSO.FULFILLMENT_SALES_ORDER_TRANSACTION_ID
      WHERE  
         /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
+        /* 20260127 - KBY, RFS23-12595 - update locations for 1/29: + LSC AVON, - LSC Owensville&Airwest,Barrett Distribution */
         (A.SOLI_LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN','BR Printers Hebron',
-                               'LSC Owensville','LSC Airwest','LSC Linn',
-                               'Barrett Distribution','hand2mind','JPS Graphics',
+                               'LSC AVON','LSC Linn',
+                               'hand2mind','JPS Graphics',
                                'Not Yet Assigned'
                                ,'Booksource', 'Continuum')
         OR A.SOLI_LOCATION IS NULL)
@@ -212,9 +213,10 @@ Recommendation: Use Business Operations maintained DEV.${vj_fsa_schema}.NS_ITEMS
         ON NSIAL.ITEM_ID = I.ITEM_ID
     WHERE 1=1
         /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
+        /* 20260127 - KBY, RFS23-12595 - update locations for 1/29: + LSC AVON, - LSC Owensville&Airwest,Barrett Distribution */
         AND NSIAL.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN','BR Printers Hebron',
-                               'LSC Owensville','LSC Airwest','LSC Linn',
-                               'Barrett Distribution','hand2mind','JPS Graphics',
+                               'LSC AVON','LSC Linn',
+                               'hand2mind','JPS Graphics',
                                'Not Yet Assigned')
         /* 20230714 - KBY - Don't include negative numbers in sum of inventory */
         AND NSIAL.QTY_AVAILABLE >= 0
@@ -431,9 +433,10 @@ UNION
         AND A.ASSEMBLY_ELSE_ITEM_ID = B.ASSEMBLY_ELSE_ITEM_ID
     WHERE 
         /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
+        /* 20260127 - KBY, RFS23-12595 - update locations for 1/29: + LSC AVON, - LSC Owensville&Airwest,Barrett Distribution */
         B.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN','BR Printers Hebron',
-                               'LSC Owensville','LSC Airwest','LSC Linn',
-                               'Barrett Distribution','hand2mind','JPS Graphics',
+                               'LSC AVON','LSC Linn',
+                               'hand2mind','JPS Graphics',
                                'Not Yet Assigned'
                                ,'Booksource', 'Continuum') // 2023.05.18 Alex: FSA
         AND A.TYPE_NAME = 'Assembly'
