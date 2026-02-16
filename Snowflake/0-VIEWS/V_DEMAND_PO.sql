@@ -138,9 +138,11 @@ WITH CTE_XFER AS (
     LEFT OUTER JOIN DEV.${vj_ns2_schema}.FACT_FULFILLMENT_SALES_ORDER FFSO
         ON A.SO_TRANSACTION_ID = FFSO.FULFILLMENT_SALES_ORDER_TRANSACTION_ID
      WHERE  
-        (A.SOLI_LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
-                               'LSC Owensville','LSC Airwest','LSC Linn',
-                               'Barrett Distribution','hand2mind','JPS Graphics',
+        /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
+        /* 20260127 - KBY, RFS23-12595 - update locations for 1/29: + LSC AVON, - LSC Owensville&Airwest,Barrett Distribution */
+        (A.SOLI_LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN','BR Printers Hebron',
+                               'LSC AVON','LSC Linn',
+                               'hand2mind','JPS Graphics',
                                'Not Yet Assigned'
                                ,'Booksource', 'Continuum')
         OR A.SOLI_LOCATION IS NULL)
@@ -210,9 +212,11 @@ Recommendation: Use Business Operations maintained DEV.${vj_fsa_schema}.NS_ITEMS
     JOIN DEV.${vj_ns2_schema}.DIM_ITEM I
         ON NSIAL.ITEM_ID = I.ITEM_ID
     WHERE 1=1
-        AND NSIAL.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
-                               'LSC Owensville','LSC Airwest','LSC Linn',
-                               'Barrett Distribution','hand2mind','JPS Graphics',
+        /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
+        /* 20260127 - KBY, RFS23-12595 - update locations for 1/29: + LSC AVON, - LSC Owensville&Airwest,Barrett Distribution */
+        AND NSIAL.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN','BR Printers Hebron',
+                               'LSC AVON','LSC Linn',
+                               'hand2mind','JPS Graphics',
                                'Not Yet Assigned')
         /* 20230714 - KBY - Don't include negative numbers in sum of inventory */
         AND NSIAL.QTY_AVAILABLE >= 0
@@ -428,10 +432,11 @@ UNION
         ON A.ORDER_NUMBER = B.ORDER_NUMBER
         AND A.ASSEMBLY_ELSE_ITEM_ID = B.ASSEMBLY_ELSE_ITEM_ID
     WHERE 
-        -- B.LOCATION IN ('hand2mind', 'BR Printers', 'JPS Graphics', 'LSC Owensville', 'Wards VWR', 'Not Yet Assigned')
-        B.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN',
-                               'LSC Owensville','LSC Airwest','LSC Linn',
-                               'Barrett Distribution','hand2mind','JPS Graphics',
+        /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
+        /* 20260127 - KBY, RFS23-12595 - update locations for 1/29: + LSC AVON, - LSC Owensville&Airwest,Barrett Distribution */
+        B.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN','BR Printers Hebron',
+                               'LSC AVON','LSC Linn',
+                               'hand2mind','JPS Graphics',
                                'Not Yet Assigned'
                                ,'Booksource', 'Continuum') // 2023.05.18 Alex: FSA
         AND A.TYPE_NAME = 'Assembly'
