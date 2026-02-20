@@ -31,18 +31,17 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.OPEN_PO_ALL AS (
            ON CAL.RAW_DATE = CURRENT_DATE()
     WHERE YEAR(RECEIVE_BY_DATE) >= 2022
     AND ORDER_NUMBER NOT LIKE ('Planning%')
+    /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
+    /* 20260127 - KBY, RFS23-12595 - update locations for 1/29: + LSC Avon, - LSC Owensville&Airwest,Barrett Distribution */
     /* 20260216 - KBY, RFS23-12966 - remove locations: BR Printers KY, BR Printers CN */
     AND (LOCATION IS NULL OR LOCATION IN 
-          ('Barrett Distribution'
-          ,'BR Printers'
+          ('BR Printers'
           ,'BR Printers SJ'
-          /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
           ,'BR Printers Hebron'
           ,'hand2mind'
           ,'JPS Graphics'
-          ,'LSC Airwest'
+          ,'LSC Avon'
           ,'LSC Linn'
-          ,'LSC Owensville'
           ,'Not Yet Assigned'
           ,'Wards VWR'
           ,'Booksource', 'Continuum' -- 2023.05.18 Alex: FSA
@@ -79,18 +78,17 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.OPEN_PO_ALL AS (
            ON CAL.RAW_DATE = CURRENT_DATE()
     WHERE YEAR(RECEIVE_BY_DATE) >= 2022
     AND ORDER_NUMBER NOT LIKE ('Planning%')
+    /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
+    /* 20260127 - KBY, RFS23-12595 - update locations for 1/29: + LSC Avon, - LSC Owensville&Airwest,Barrett Distribution */
     /* 20260216 - KBY, RFS23-12966 - remove locations: BR Printers KY, BR Printers CN */
     AND (LOCATION IS NULL OR LOCATION IN 
-          ('Barrett Distribution'
-          ,'BR Printers'
+          ('BR Printers'
           ,'BR Printers SJ'
-          /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
           ,'BR Printers Hebron'
           ,'hand2mind'
           ,'JPS Graphics'
-          ,'LSC Airwest'
+          ,'LSC Avon'
           ,'LSC Linn'
-          ,'LSC Owensville'
           ,'Not Yet Assigned'
           ,'Wards VWR'
           ,'Booksource', 'Continuum' -- 2023.05.18 Alex: FSA
