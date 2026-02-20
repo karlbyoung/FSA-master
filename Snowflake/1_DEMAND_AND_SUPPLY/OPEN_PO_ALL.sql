@@ -33,10 +33,9 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.OPEN_PO_ALL AS (
     AND ORDER_NUMBER NOT LIKE ('Planning%')
     /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
     /* 20260127 - KBY, RFS23-12595 - update locations for 1/29: + LSC Avon, - LSC Owensville&Airwest,Barrett Distribution */
+    /* 20260216 - KBY, RFS23-12966 - remove locations: BR Printers KY, BR Printers CN */
     AND (LOCATION IS NULL OR LOCATION IN 
           ('BR Printers'
-          ,'BR Printers CN'
-          ,'BR Printers KY'
           ,'BR Printers SJ'
           ,'BR Printers Hebron'
           ,'hand2mind'
@@ -81,10 +80,9 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.OPEN_PO_ALL AS (
     AND ORDER_NUMBER NOT LIKE ('Planning%')
     /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
     /* 20260127 - KBY, RFS23-12595 - update locations for 1/29: + LSC Avon, - LSC Owensville&Airwest,Barrett Distribution */
+    /* 20260216 - KBY, RFS23-12966 - remove locations: BR Printers KY, BR Printers CN */
     AND (LOCATION IS NULL OR LOCATION IN 
           ('BR Printers'
-          ,'BR Printers CN'
-          ,'BR Printers KY'
           ,'BR Printers SJ'
           ,'BR Printers Hebron'
           ,'hand2mind'

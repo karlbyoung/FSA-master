@@ -140,7 +140,8 @@ WITH CTE_XFER AS (
      WHERE  
         /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
         /* 20260127 - KBY, RFS23-12595 - update locations for 1/29: + LSC AVON, - LSC Owensville&Airwest,Barrett Distribution */
-        (A.SOLI_LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN','BR Printers Hebron',
+        /* 20260216 - KBY, RFS23-12966 - remove locations: BR Printers KY, BR Printers CN */
+        (A.SOLI_LOCATION IN ('BR Printers SJ','BR Printers Hebron',
                                'LSC AVON','LSC Linn',
                                'hand2mind','JPS Graphics',
                                'Not Yet Assigned'
@@ -214,7 +215,8 @@ Recommendation: Use Business Operations maintained DEV.${vj_fsa_schema}.NS_ITEMS
     WHERE 1=1
         /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
         /* 20260127 - KBY, RFS23-12595 - update locations for 1/29: + LSC AVON, - LSC Owensville&Airwest,Barrett Distribution */
-        AND NSIAL.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN','BR Printers Hebron',
+        /* 20260216 - KBY, RFS23-12966 - remove locations: BR Printers KY, BR Printers CN */
+        AND NSIAL.LOCATION IN ('BR Printers SJ','BR Printers Hebron',
                                'LSC AVON','LSC Linn',
                                'hand2mind','JPS Graphics',
                                'Not Yet Assigned')
@@ -434,7 +436,8 @@ UNION
     WHERE 
         /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
         /* 20260127 - KBY, RFS23-12595 - update locations for 1/29: + LSC AVON, - LSC Owensville&Airwest,Barrett Distribution */
-        B.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN','BR Printers Hebron',
+        /* 20260216 - KBY, RFS23-12966 - remove locations: BR Printers KY, BR Printers CN */
+        B.LOCATION IN ('BR Printers SJ','BR Printers Hebron',
                                'LSC AVON','LSC Linn',
                                'hand2mind','JPS Graphics',
                                'Not Yet Assigned'
