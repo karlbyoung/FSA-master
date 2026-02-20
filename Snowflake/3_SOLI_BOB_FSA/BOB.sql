@@ -197,7 +197,8 @@ CREATE OR REPLACE TABLE DEV.${vj_fsa_schema}.BOB AS
             ,bucket.FREDD::DATE AS FREDD
             ,bucket.BUCKET_ON_AVAIL_DATE
             ,bucket.BUCKET_DATE_ON_AVAIL_DATE
-            ,cap.CAPPING_DDA
+            /* 20260218 - KBY, test - use FREDD as CAPPING_DDA if buckets return NULL */
+            ,IFNULL(cap.CAPPING_DDA,bucket.FREDD::DATE) as CAPPING_DDA
             ,bucket.IS_GT_15_BIZDAYS
             ,bucket.IF_BUCKET1
             ,bucket.IF_BUCKET2

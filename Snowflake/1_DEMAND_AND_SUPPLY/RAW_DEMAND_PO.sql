@@ -124,7 +124,8 @@ WITH CTE_XFER AS (
         ON A.SO_TRANSACTION_ID = FFSO.FULFILLMENT_SALES_ORDER_TRANSACTION_ID
      WHERE  
         /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
-        (A.SOLI_LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN','BR Printers Hebron',
+        /* 20260216 - KBY, RFS23-12966 - remove locations: BR Printers KY, BR Printers CN */
+        (A.SOLI_LOCATION IN ('BR Printers SJ','BR Printers Hebron',
                                'LSC Owensville','LSC Airwest','LSC Linn',
                                'Barrett Distribution','hand2mind','JPS Graphics',
                                'Not Yet Assigned'
@@ -197,7 +198,8 @@ Recommendation: Use Business Operations maintained DEV.${vj_fsa_schema}.NS_ITEMS
         ON NSIAL.ITEM_ID = I.ITEM_ID
     WHERE 1=1
         /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
-        AND NSIAL.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN','BR Printers Hebron',
+        /* 20260216 - KBY, RFS23-12966 - remove locations: BR Printers KY, BR Printers CN */
+        AND NSIAL.LOCATION IN ('BR Printers SJ','BR Printers Hebron',
                                'LSC Owensville','LSC Airwest','LSC Linn',
                                'Barrett Distribution','hand2mind','JPS Graphics',
                                'Not Yet Assigned')
@@ -418,7 +420,8 @@ UNION
         AND A.ASSEMBLY_ELSE_ITEM_ID = B.ASSEMBLY_ELSE_ITEM_ID
     WHERE 
         /* 20260126 - KBY, RFS23-12578 - add new location: BR Printers Hebron */
-        B.LOCATION IN ('BR Printers KY','BR Printers SJ','BR Printers CN','BR Printers Hebron',
+        /* 20260216 - KBY, RFS23-12966 - remove locations: BR Printers KY, BR Printers CN */
+        B.LOCATION IN ('BR Printers SJ','BR Printers Hebron',
                                'LSC Owensville','LSC Airwest','LSC Linn',
                                'Barrett Distribution','hand2mind','JPS Graphics',
                                'Not Yet Assigned'
